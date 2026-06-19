@@ -233,8 +233,6 @@ export default function App() {
   const jump = useCallback(() => {
     if (gameState === 'PLAYING') {
       setBirdVelocity(JUMP_STRENGTH);
-    } else if (gameState === 'START' || gameState === 'GAME_OVER') {
-      startGame();
     }
   }, [gameState]);
 
@@ -587,7 +585,7 @@ export default function App() {
           {/* Overlays */}
           {gameState !== 'PLAYING' && (
             <div 
-              className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/50 backdrop-blur-sm z-40"
+              className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/50 backdrop-blur-sm z-40 pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >

@@ -37,3 +37,16 @@
 .animate-cloud-3 { animation: drift-left 60s linear infinite; }
 .animate-cloud-4 { animation: drift-left 45s linear infinite; }
 .animate-cloud-5 { animation: drift-left 55s linear infinite; }
+
+@keyframes flap {
+  0%, 100% {
+    transform: rotate(0deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-45deg) translateY(-2px);
+  }
+}
+
+.animate-wing {
+  animation: flap 0.15s ease-in-out infinite;
+}

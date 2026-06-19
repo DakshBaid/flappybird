@@ -63,10 +63,10 @@ export default function App() {
   const [gameState, setGameState] = useState<GameState>('START');
   const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
   const [dimensions, setDimensions] = useState({
-    width: Math.min(window.innerWidth, 480),
-    height: Math.min(window.innerHeight, 720)
+    width: window.innerWidth,
+    height: window.innerHeight
   });
-  const [birdPos, setBirdPos] = useState(Math.min(window.innerHeight, 720) / 2);
+  const [birdPos, setBirdPos] = useState(window.innerHeight / 2);
   const [birdVelocity, setBirdVelocity] = useState(0);
   const [pipes, setPipes] = useState<PipeData[]>([]);
   const [score, setScore] = useState(0);
@@ -78,11 +78,11 @@ export default function App() {
   useEffect(() => {
     const handleResize = () => {
       setDimensions({
-        width: Math.min(window.innerWidth, 480),
-        height: Math.min(window.innerHeight, 720)
+        width: window.innerWidth,
+        height: window.innerHeight
       });
       if (gameState === 'START') {
-        setBirdPos(Math.min(window.innerHeight, 720) / 2);
+        setBirdPos(window.innerHeight / 2);
       }
     };
     window.addEventListener('resize', handleResize);
@@ -113,7 +113,7 @@ export default function App() {
     const minPipeHeight = 100;
     const maxPipeHeight = dimensions.height - config.pipeGap - 100 - GROUND_HEIGHT;
     const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
-    const initialPipeX = Math.max(BIRD_X + 200, Math.min(dimensions.width * 0.75, 400));
+    const initialPipeX = Math.max(BIRD_X + 250, Math.min(dimensions.width * 0.75, 650));
     
     setPipes([
       {
@@ -271,9 +271,9 @@ export default function App() {
   }, [jump]);
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-slate-950 font-sans select-none flex justify-center items-center p-4">
+    <div className="w-screen h-screen overflow-hidden bg-slate-950 font-sans select-none relative">
       <div 
-        className="w-full max-w-[480px] h-full max-h-[720px] rounded-[2rem] overflow-hidden relative bg-gradient-to-b from-sky-400 via-sky-300 to-sky-100 shadow-2xl border border-white/10"
+        className="absolute inset-0 bg-gradient-to-b from-sky-400 via-sky-300 to-sky-100"
         onClick={jump}
         onPointerDown={(e) => {
             e.preventDefault();
@@ -349,7 +349,7 @@ export default function App() {
 
         {/* Bird */}
         <div
-          className="absolute z-20 flex items-center justify-center transition-transform duration-[50ms] drop-shadow-2xl"
+          className="absolute z-20 flex items-center justify-center transition-transform duration-[50ms]"
           style={{
             left: BIRD_X,
             top: birdPos,
@@ -358,17 +358,35 @@ export default function App() {
             transform: `rotate(${Math.min(Math.max(birdVelocity * 3, -25), 90)}deg)`,
           }}
         >
-          {/* Custom Bird Image */}
-          <img 
-            src="/bird.png" 
-            alt="Bird" 
-            className="w-full h-full object-contain drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]"
-            onError={(e) => {
-              // Fallback styling if image is missing
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.parentElement?.classList.add('bg-yellow-400', 'rounded-full', 'border-4', 'border-white');
-            }}
-          />
+          <svg viewBox="0 0 60 60" className="w-full h-full filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]">
+            {/* Tail */}
+            <path d="M 12 32 L 4 28 L 6 36 Z" fill="#eab308" stroke="#713f12" strokeWidth="2.5" strokeLinejoin="round" />
+            
+            {/* Body */}
+            <circle cx="30" cy="30" r="18" fill="#facc15" stroke="#713f12" strokeWidth="3" />
+            
+            {/* Cheek */}
+            <circle cx="25" cy="33" r="3" fill="#f97316" opacity="0.6" />
+            
+            {/* Eye */}
+            <circle cx="40" cy="22" r="6.5" fill="white" stroke="#713f12" strokeWidth="2.5" />
+            <circle cx="41" cy="22" r="2.5" fill="black" />
+            <circle cx="42.5" cy="20.5" r="1" fill="white" />
+            
+            {/* Beak */}
+            <path d="M 44 26 L 54 29 L 42 34 Z" fill="#f97316" stroke="#713f12" strokeWidth="2.5" strokeLinejoin="round" />
+            <path d="M 42 30 L 50 31" stroke="#713f12" strokeWidth="2" strokeLinecap="round" />
+            
+            {/* Wing (Animated) */}
+            <path 
+              d="M 22 28 C 12 22, 10 38, 22 36 C 24 35, 24 30, 22 28 Z" 
+              fill="white" 
+              stroke="#713f12" 
+              strokeWidth="2.5" 
+              className="animate-wing"
+              style={{ transformOrigin: '22px 32px' }}
+            />
+          </svg>
         </div>
 
         {/* HUD / UI */}

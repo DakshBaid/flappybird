@@ -133,8 +133,7 @@ export default function App() {
       '/jumpscares/gian-hain-aap.mp3',
       '/jumpscares/goofy-uhhh-indian-sound.mp3',
       '/jumpscares/memetemplatespro.in MkbAagAmitabhBachchan.mp3',
-      '/jumpscares/modi-ji-bkl.mp3',
-      '/jumpscares/scream.mp3'
+      '/jumpscares/modi-ji-bkl.mp3'
     ];
     audiosToPreload.forEach((src) => {
       const audio = new Audio(src);
@@ -144,8 +143,6 @@ export default function App() {
 
     // Preload jumpscare images to memory cache for zero-delay loading
     const imagesToPreload = [
-      '/jumpscares/scary_face.png', 
-      '/jumpscares/scary_face_2.png',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
@@ -310,8 +307,6 @@ export default function App() {
 
     // Jumpscare trigger logic: TRIGGER EVERY TIME
     const images = [
-      '/jumpscares/scary_face.png', 
-      '/jumpscares/scary_face_2.png',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
@@ -336,8 +331,7 @@ export default function App() {
       '/jumpscares/gian-hain-aap.mp3',
       '/jumpscares/goofy-uhhh-indian-sound.mp3',
       '/jumpscares/memetemplatespro.in MkbAagAmitabhBachchan.mp3',
-      '/jumpscares/modi-ji-bkl.mp3',
-      '/jumpscares/scream.mp3'
+      '/jumpscares/modi-ji-bkl.mp3'
     ];
     
     if (remainingAudiosRef.current.length === 0) {

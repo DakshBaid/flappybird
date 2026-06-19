@@ -162,7 +162,7 @@ export default function App() {
       }
       if (newBirdPos <= 0) {
         newBirdPos = 0;
-        newVelocity = 0;
+        gameOver();
       }
 
       setBirdPos(newBirdPos);

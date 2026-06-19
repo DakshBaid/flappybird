@@ -4,13 +4,12 @@ import { Play, RotateCcw, Trophy } from 'lucide-react';
 // Slower gameplay constants
 const GRAVITY = 0.35;
 const JUMP_STRENGTH = -7;
-const PIPE_SPEED = 2.5;
 const PIPE_WIDTH = 90;
-const PIPE_GAP = 240; // Wider gap for slower/easier play
 const BIRD_SIZE = 50; // Increased size to fit the logo image nicely
 const BIRD_X = 150; // Bird's fixed horizontal position
 
 type GameState = 'START' | 'PLAYING' | 'GAME_OVER';
+type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
 interface PipeData {
   x: number;
@@ -18,8 +17,33 @@ interface PipeData {
   passed: boolean;
 }
 
+interface DifficultySettings {
+  pipeGap: number;
+  spawnDistance: number;
+  pipeSpeed: number;
+}
+
+const DIFFICULTY_CONFIG: Record<Difficulty, DifficultySettings> = {
+  EASY: {
+    pipeGap: 265,
+    spawnDistance: 500,
+    pipeSpeed: 2.2,
+  },
+  MEDIUM: {
+    pipeGap: 215,
+    spawnDistance: 400,
+    pipeSpeed: 2.8,
+  },
+  HARD: {
+    pipeGap: 165,
+    spawnDistance: 320,
+    pipeSpeed: 3.5,
+  },
+};
+
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('START');
+  const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight
@@ -63,8 +87,23 @@ export default function App() {
   const startGame = () => {
     setGameState('PLAYING');
     setBirdPos(dimensions.height / 2);
-    setBirdVelocity(JUMP_STRENGTH); 
-    setPipes([]);
+    setBirdVelocity(JUMP_STRENGTH);
+    
+    // Spawn the first pipe closer to reduce starting gap
+    const config = DIFFICULTY_CONFIG[difficulty];
+    const GROUND_HEIGHT = 40;
+    const minPipeHeight = 100;
+    const maxPipeHeight = dimensions.height - config.pipeGap - 100 - GROUND_HEIGHT;
+    const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
+    const initialPipeX = Math.max(BIRD_X + 250, Math.min(dimensions.width * 0.75, 650));
+    
+    setPipes([
+      {
+        x: initialPipeX,
+        topHeight,
+        passed: false,
+      }
+    ]);
     setScore(0);
   };
 
@@ -77,10 +116,10 @@ export default function App() {
   }, [score, highScore]);
 
   // Ref to hold mutable state for the animation frame
-  const stateRef = useRef({ birdPos, birdVelocity, pipes, gameState, dimensions });
+  const stateRef = useRef({ birdPos, birdVelocity, pipes, gameState, dimensions, difficulty });
   useEffect(() => {
-    stateRef.current = { birdPos, birdVelocity, pipes, gameState, dimensions };
-  }, [birdPos, birdVelocity, pipes, gameState, dimensions]);
+    stateRef.current = { birdPos, birdVelocity, pipes, gameState, dimensions, difficulty };
+  }, [birdPos, birdVelocity, pipes, gameState, dimensions, difficulty]);
 
   useEffect(() => {
     if (gameState !== 'PLAYING') return;
@@ -88,6 +127,8 @@ export default function App() {
     const gameLoop = () => {
       const currentState = stateRef.current;
       const { width, height } = currentState.dimensions;
+      const currentDifficulty = currentState.difficulty;
+      const config = DIFFICULTY_CONFIG[currentDifficulty];
       
       // Ground offset (visual ground height)
       const GROUND_HEIGHT = 40;
@@ -112,16 +153,16 @@ export default function App() {
       // Update Pipes
       setPipes((currentPipes) => {
         let newPipes = currentPipes
-          .map((pipe) => ({ ...pipe, x: pipe.x - PIPE_SPEED }))
+          .map((pipe) => ({ ...pipe, x: pipe.x - config.pipeSpeed }))
           .filter((pipe) => pipe.x > -PIPE_WIDTH * 2);
 
         // Spawn new pipe based on screen width
         // Spawn when the last pipe is far enough away
-        const spawnDistance = Math.min(450, width / 2); 
+        const spawnDistance = config.spawnDistance; 
         
         if (newPipes.length === 0 || newPipes[newPipes.length - 1].x < width - spawnDistance) {
           const minPipeHeight = 100;
-          const maxPipeHeight = height - PIPE_GAP - 100 - GROUND_HEIGHT;
+          const maxPipeHeight = height - config.pipeGap - 100 - GROUND_HEIGHT;
           const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
           
           newPipes.push({
@@ -147,6 +188,7 @@ export default function App() {
   useEffect(() => {
     if (gameState !== 'PLAYING') return;
 
+    const config = DIFFICULTY_CONFIG[difficulty];
     const birdRect = {
       left: BIRD_X + 5, // Tighter horizontal hitbox for the image
       right: BIRD_X + BIRD_SIZE - 5,
@@ -169,7 +211,7 @@ export default function App() {
       const bottomPipeRect = {
         left: pipe.x,
         right: pipe.x + PIPE_WIDTH,
-        top: pipe.topHeight + PIPE_GAP,
+        top: pipe.topHeight + config.pipeGap,
         bottom: dimensions.height,
       };
 
@@ -196,7 +238,7 @@ export default function App() {
     if (crashed) {
       gameOver();
     }
-  }, [birdPos, pipes, gameState, gameOver, dimensions.height]);
+  }, [birdPos, pipes, gameState, gameOver, dimensions.height, difficulty]);
 
   // Keyboard support
   useEffect(() => {
@@ -250,7 +292,7 @@ export default function App() {
               style={{
                 left: pipe.x,
                 width: PIPE_WIDTH,
-                height: dimensions.height - pipe.topHeight - PIPE_GAP - 40, // 40 is ground height
+                height: dimensions.height - pipe.topHeight - DIFFICULTY_CONFIG[difficulty].pipeGap - 40, // 40 is ground height
                 borderTopLeftRadius: '8px',
                 borderTopRightRadius: '8px',
               }}
@@ -322,11 +364,44 @@ export default function App() {
                 </p>
                 
                 {gameState === 'GAME_OVER' && (
-                  <div className="bg-slate-100/80 rounded-3xl p-6 mb-10 border-2 border-slate-200 shadow-inner">
+                  <div className="bg-slate-100/80 rounded-3xl p-6 mb-8 border-2 border-slate-200 shadow-inner">
                      <p className="text-sm text-slate-500 uppercase tracking-widest font-black mb-2">Final Score</p>
                      <p className="text-7xl font-black text-slate-800 drop-shadow-sm">{score}</p>
                   </div>
                 )}
+
+                {/* Difficulty Selector */}
+                <div className="mb-8 pointer-events-auto">
+                  <p className="text-xs text-slate-400 uppercase tracking-widest font-black mb-3">Select Difficulty</p>
+                  <div className="flex gap-2 justify-center">
+                    {(['EASY', 'MEDIUM', 'HARD'] as const).map((diff) => {
+                      const isActive = difficulty === diff;
+                      const styles = {
+                        EASY: isActive 
+                          ? 'bg-emerald-500 text-white border-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.3)] scale-[1.05]' 
+                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700',
+                        MEDIUM: isActive 
+                          ? 'bg-amber-500 text-white border-amber-500 shadow-[0_4px_12px_rgba(245,158,11,0.3)] scale-[1.05]' 
+                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700',
+                        HARD: isActive 
+                          ? 'bg-rose-500 text-white border-rose-500 shadow-[0_4px_12px_rgba(244,63,94,0.3)] scale-[1.05]' 
+                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700'
+                      };
+                      return (
+                        <button
+                          key={diff}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDifficulty(diff);
+                          }}
+                          className={`flex-1 px-4 py-3 rounded-2xl font-black text-sm transition-all duration-200 border-2 cursor-pointer ${styles[diff]}`}
+                        >
+                          {diff}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 <button 
                   onClick={(e) => { e.stopPropagation(); startGame(); }}

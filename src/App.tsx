@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, RotateCcw, Trophy } from 'lucide-react';
+import { Play, RotateCcw, Trophy, User, Lock, LogIn, UserPlus, LogOut, ListOrdered, X } from 'lucide-react';
 
 // Slower gameplay constants
 const GRAVITY = 0.35;
@@ -70,7 +70,29 @@ export default function App() {
   const [birdVelocity, setBirdVelocity] = useState(0);
   const [pipes, setPipes] = useState<PipeData[]>([]);
   const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(0);
+  
+  // Difficulty-specific high scores
+  const [highScores, setHighScores] = useState<Record<Difficulty, number>>({
+    EASY: 0,
+    MEDIUM: 0,
+    HARD: 0
+  });
+
+  // Auth States
+  const [user, setUser] = useState<string | null>(localStorage.getItem('flappyUser') || null);
+  const [authTab, setAuthTab] = useState<'LOGIN' | 'REGISTER' | 'LEADERBOARD' | null>(null);
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
+  const [leaderboard, setLeaderboard] = useState<{ username: string, score: number, timestamp: string }[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+
+  // Jumpscare States
+  const [jumpscareActive, setJumpscareActive] = useState(false);
+  const [jumpscareImg, setJumpscareImg] = useState('');
+  const triesCountRef = useRef(0);
+  const jumpscareAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const requestRef = useRef<number | undefined>(undefined);
 
@@ -90,9 +112,110 @@ export default function App() {
   }, [gameState]);
 
   useEffect(() => {
-    const savedScore = localStorage.getItem('flappyHighScore');
-    if (savedScore) setHighScore(parseInt(savedScore, 10));
+    // Load high scores from localStorage
+    const easy = localStorage.getItem('flappyHighScore_EASY') || '0';
+    const medium = localStorage.getItem('flappyHighScore_MEDIUM') || '0';
+    const hard = localStorage.getItem('flappyHighScore_HARD') || '0';
+    setHighScores({
+      EASY: parseInt(easy, 10),
+      MEDIUM: parseInt(medium, 10),
+      HARD: parseInt(hard, 10)
+    });
+
+    // Initialize jumpscare audio
+    jumpscareAudioRef.current = new Audio('https://www.soundjay.com/human/sounds/scream-1.mp3');
+    if (jumpscareAudioRef.current) {
+      jumpscareAudioRef.current.volume = 1.0;
+    }
   }, []);
+
+  // Fetch leaderboard when tab opens
+  useEffect(() => {
+    if (authTab === 'LEADERBOARD') {
+      fetchLeaderboard(difficulty);
+    }
+  }, [authTab, difficulty]);
+
+  const fetchLeaderboard = async (diff: Difficulty) => {
+    setLoadingLeaderboard(true);
+    try {
+      const res = await fetch(`/api/scores/leaderboard?difficulty=${diff}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLeaderboard(data);
+      }
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthMessage('');
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameInput, password: passwordInput })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || 'Registration failed');
+      } else {
+        setAuthMessage('Account created! Please log in.');
+        setAuthTab('LOGIN');
+        setPasswordInput('');
+      }
+    } catch (err) {
+      setAuthError('Connection error');
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthMessage('');
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameInput, password: passwordInput })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || 'Login failed');
+      } else {
+        setUser(data.username);
+        localStorage.setItem('flappyUser', data.username);
+        setAuthTab(null);
+        setUsernameInput('');
+        setPasswordInput('');
+      }
+    } catch (err) {
+      setAuthError('Connection error');
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('flappyUser');
+  };
+
+  const submitScoreToBackend = async (finalScore: number, finalDiff: Difficulty) => {
+    if (!user) return;
+    try {
+      await fetch('/api/scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, score: finalScore, difficulty: finalDiff })
+      });
+    } catch (err) {
+      console.error('Failed to submit score to backend:', err);
+    }
+  };
 
   const jump = useCallback(() => {
     if (gameState === 'PLAYING') {
@@ -127,11 +250,47 @@ export default function App() {
 
   const gameOver = useCallback(() => {
     setGameState('GAME_OVER');
-    if (score > highScore) {
-      setHighScore(score);
-      localStorage.setItem('flappyHighScore', score.toString());
+    
+    // Save difficulty-specific local high scores
+    const currentHighScore = highScores[difficulty];
+    if (score > currentHighScore) {
+      setHighScores(prev => {
+        const updated = { ...prev, [difficulty]: score };
+        localStorage.setItem(`flappyHighScore_${difficulty}`, score.toString());
+        return updated;
+      });
     }
-  }, [score, highScore]);
+
+    // Submit score to backend
+    if (user) {
+      submitScoreToBackend(score, difficulty);
+    }
+
+    // Jumpscare trigger logic (occurs randomly every 2-3 attempts)
+    triesCountRef.current += 1;
+    if (triesCountRef.current >= 2 && Math.random() < 0.45) {
+      triesCountRef.current = 0;
+      const images = [
+        '/jumpscares/scary_face.png', 
+        '/jumpscares/scary_face_2.png',
+        '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.56 AM.jpeg',
+        '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
+        '/jumpscares/Screenshot 2026-06-19 235947.png'
+      ];
+      const randomImg = images[Math.floor(Math.random() * images.length)];
+      setJumpscareImg(randomImg);
+      
+      if (jumpscareAudioRef.current) {
+        jumpscareAudioRef.current.currentTime = 0;
+        jumpscareAudioRef.current.play().catch(e => console.error("Audio playback blocked", e));
+      }
+      
+      setJumpscareActive(true);
+      setTimeout(() => {
+        setJumpscareActive(false);
+      }, 1500);
+    }
+  }, [score, difficulty, user, highScores]);
 
   // Ref to hold mutable state for the animation frame
   const stateRef = useRef({ birdPos, birdVelocity, pipes, gameState, dimensions, difficulty });
@@ -399,7 +558,7 @@ export default function App() {
             </div>
             <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl px-6 py-3 rounded-2xl text-white font-bold shadow-2xl border-2 border-white/20">
               <Trophy size={24} className="text-yellow-400 drop-shadow-lg" />
-              <span className="text-2xl">{highScore}</span>
+              <span className="text-2xl">{highScores[difficulty]}</span>
             </div>
           </div>
 
@@ -410,95 +569,312 @@ export default function App() {
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center transform transition-all border border-white/10 max-w-md w-full mx-4 text-white">
+              <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center transform transition-all border border-white/10 max-w-md w-full mx-4 text-white relative">
                 
-                <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 mb-2 drop-shadow-sm pb-1 tracking-wider uppercase">
-                  Flappy Dev
-                </h1>
-                
-                <p className="text-slate-400 font-bold text-sm mb-6">
-                  {gameState === 'GAME_OVER' ? '💻 You crashed the code!' : '🚀 Refactor and fly through the obstacles'}
-                </p>
+                {/* 1. Auth Login Screen */}
+                {authTab === 'LOGIN' && (
+                  <form onSubmit={handleLogin} className="flex flex-col text-left">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-black flex items-center gap-2">
+                        <LogIn size={22} className="text-sky-400" /> Log In
+                      </h2>
+                      <button type="button" onClick={() => { setAuthTab(null); setAuthError(''); setAuthMessage(''); }} className="text-slate-400 hover:text-white cursor-pointer">
+                        <X size={20} />
+                      </button>
+                    </div>
 
-                {/* Score Dashboard */}
-                {gameState === 'START' ? (
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 bg-amber-500/20 text-amber-400 rounded-xl">
-                        <Trophy size={22} fill="currentColor" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Personal Best</p>
-                        <p className="text-2xl font-black text-white">{highScore}</p>
-                      </div>
+                    {authError && <p className="text-xs text-rose-400 font-bold mb-4 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg">{authError}</p>}
+                    {authMessage && <p className="text-xs text-emerald-400 font-bold mb-4 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg">{authMessage}</p>}
+
+                    <label className="text-xs text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Username</label>
+                    <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-4">
+                      <User size={16} className="text-slate-400 mr-2" />
+                      <input 
+                        type="text" 
+                        required
+                        value={usernameInput}
+                        onChange={(e) => setUsernameInput(e.target.value)}
+                        placeholder="username" 
+                        className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
+                      />
                     </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Score</p>
-                      <p className="text-3xl font-black text-sky-400">{score}</p>
+
+                    <label className="text-xs text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Password</label>
+                    <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-6">
+                      <Lock size={16} className="text-slate-400 mr-2" />
+                      <input 
+                        type="password" 
+                        required
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        placeholder="••••••••" 
+                        className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
+                      />
                     </div>
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Best</p>
-                      <p className="text-3xl font-black text-amber-400">{highScore}</p>
+
+                    <button 
+                      type="submit" 
+                      className="w-full py-3.5 rounded-xl font-black text-sm text-white bg-sky-500 hover:bg-sky-600 transition-all cursor-pointer mb-4 font-bold"
+                    >
+                      Login
+                    </button>
+                    <p className="text-xs text-center text-slate-400">
+                      New dev? <button type="button" onClick={() => { setAuthTab('REGISTER'); setAuthError(''); setAuthMessage(''); }} className="text-sky-400 font-bold hover:underline cursor-pointer">Create account</button>
+                    </p>
+                  </form>
+                )}
+
+                {/* 2. Auth Register Screen */}
+                {authTab === 'REGISTER' && (
+                  <form onSubmit={handleRegister} className="flex flex-col text-left">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-black flex items-center gap-2">
+                        <UserPlus size={22} className="text-emerald-400" /> Create Account
+                      </h2>
+                      <button type="button" onClick={() => { setAuthTab(null); setAuthError(''); setAuthMessage(''); }} className="text-slate-400 hover:text-white cursor-pointer">
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    {authError && <p className="text-xs text-rose-400 font-bold mb-4 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg">{authError}</p>}
+
+                    <label className="text-xs text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Username</label>
+                    <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-4">
+                      <User size={16} className="text-slate-400 mr-2" />
+                      <input 
+                        type="text" 
+                        required
+                        value={usernameInput}
+                        onChange={(e) => setUsernameInput(e.target.value)}
+                        placeholder="3+ characters" 
+                        className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
+                      />
+                    </div>
+
+                    <label className="text-xs text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Password</label>
+                    <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-6">
+                      <Lock size={16} className="text-slate-400 mr-2" />
+                      <input 
+                        type="password" 
+                        required
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        placeholder="4+ characters" 
+                        className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
+                      />
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      className="w-full py-3.5 rounded-xl font-black text-sm text-white bg-emerald-500 hover:bg-emerald-600 transition-all cursor-pointer mb-4 font-bold"
+                    >
+                      Sign Up
+                    </button>
+                    <p className="text-xs text-center text-slate-400">
+                      Already registered? <button type="button" onClick={() => { setAuthTab('LOGIN'); setAuthError(''); setAuthMessage(''); }} className="text-emerald-400 font-bold hover:underline cursor-pointer">Log in</button>
+                    </p>
+                  </form>
+                )}
+
+                {/* 3. Leaderboard Tab Screen */}
+                {authTab === 'LEADERBOARD' && (
+                  <div className="flex flex-col text-left">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-2xl font-black flex items-center gap-2">
+                        <ListOrdered size={22} className="text-amber-400" /> Leaderboard
+                      </h2>
+                      <button type="button" onClick={() => setAuthTab(null)} className="text-slate-400 hover:text-white cursor-pointer">
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    {/* Difficulty Tab Selector for Leaderboard */}
+                    <div className="flex gap-1 mb-4 bg-white/5 p-1 rounded-xl">
+                      {(['EASY', 'MEDIUM', 'HARD'] as const).map((diff) => (
+                        <button
+                          key={diff}
+                          onClick={() => setDifficulty(diff)}
+                          className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all cursor-pointer ${
+                            difficulty === diff
+                              ? 'bg-white/10 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {diff}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden max-h-[250px] overflow-y-auto">
+                      {loadingLeaderboard ? (
+                        <p className="text-xs text-center py-8 text-slate-400">Loading scores...</p>
+                      ) : leaderboard.length === 0 ? (
+                        <p className="text-xs text-center py-8 text-slate-400">No high scores yet on {difficulty}!</p>
+                      ) : (
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b border-white/10 bg-white/5 text-slate-400 font-black">
+                              <th className="p-3 text-center w-12">Rank</th>
+                              <th className="p-3">Player</th>
+                              <th className="p-3 text-right">Score</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {leaderboard.map((item, idx) => (
+                              <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                <td className="p-3 text-center font-bold">
+                                  {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
+                                </td>
+                                <td className="p-3 font-semibold text-white">{item.username}</td>
+                                <td className="p-3 text-right font-black text-sky-400">{item.score}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {/* Difficulty Selector */}
-                <div className="mb-8 pointer-events-auto">
-                  <p className="text-xs text-slate-400 uppercase font-black tracking-widest mb-3 text-left pl-1">Select Difficulty</p>
-                  <div className="flex gap-2 justify-center">
-                    {(['EASY', 'MEDIUM', 'HARD'] as const).map((diff) => {
-                      const isActive = difficulty === diff;
-                      let btnClass = "flex-1 py-3 rounded-xl font-black text-xs transition-all duration-300 border cursor-pointer ";
-                      if (isActive) {
-                        if (diff === 'EASY') btnClass += "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-[1.03]";
-                        else if (diff === 'MEDIUM') btnClass += "bg-amber-500 text-white border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-[1.03]";
-                        else btnClass += "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)] scale-[1.03]";
-                      } else {
-                        btnClass += "bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white";
-                      }
-                      return (
-                        <button
-                          key={diff}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDifficulty(diff);
-                          }}
-                          className={btnClass}
-                        >
-                          {diff}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                {/* 4. Main Menu View */}
+                {!authTab && (
+                  <>
+                    {/* User profile / Login header */}
+                    <div className="absolute top-4 right-4 flex items-center gap-2 text-xs">
+                      {user ? (
+                        <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
+                          <span className="font-bold text-sky-400">👤 {user}</span>
+                          <button 
+                            onClick={handleLogout}
+                            title="Log Out"
+                            className="text-slate-400 hover:text-rose-400 cursor-pointer transition-colors"
+                          >
+                            <LogOut size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <button 
+                            onClick={() => { setAuthTab('LOGIN'); setAuthError(''); setAuthMessage(''); }}
+                            className="bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold px-3 py-1.5 rounded-full cursor-pointer transition-all"
+                          >
+                            Log In
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
-                <button 
-                  onClick={(e) => { e.stopPropagation(); startGame(); }}
-                  className="w-full py-4 rounded-xl font-black text-md text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 active:scale-95 transition-all duration-300 pointer-events-auto cursor-pointer flex items-center justify-center gap-2"
-                >
-                  {gameState === 'START' ? (
-                    <>
-                      <Play size={18} fill="currentColor" />
-                      Confirm & Start
-                    </>
-                  ) : (
-                    <>
-                      <RotateCcw size={18} />
-                      Confirm & Restart
-                    </>
-                  )}
-                </button>
+                    <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 mb-2 drop-shadow-sm pb-1 tracking-wider uppercase">
+                      Flappy Dev
+                    </h1>
+                    
+                    <p className="text-slate-400 font-bold text-sm mb-6">
+                      {gameState === 'GAME_OVER' ? '💻 You crashed the code!' : '🚀 Refactor and fly through the obstacles'}
+                    </p>
 
-                <p className="text-[10px] text-slate-500 font-bold mt-4">
-                  {gameState === 'START' ? 'Press Space or click screen to jump once started' : 'Select difficulty and press Restart to play again'}
-                </p>
+                    {/* Score Dashboard */}
+                    {gameState === 'START' ? (
+                      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-amber-500/20 text-amber-400 rounded-xl">
+                            <Trophy size={22} fill="currentColor" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Personal Best ({difficulty})</p>
+                            <p className="text-2xl font-black text-white">{highScores[difficulty]}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
+                          <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Score</p>
+                          <p className="text-3xl font-black text-sky-400">{score}</p>
+                        </div>
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
+                          <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Best ({difficulty})</p>
+                          <p className="text-3xl font-black text-amber-400">{highScores[difficulty]}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Difficulty Selector */}
+                    <div className="mb-6 pointer-events-auto">
+                      <p className="text-xs text-slate-400 uppercase font-black tracking-widest mb-3 text-left pl-1">Select Difficulty</p>
+                      <div className="flex gap-2 justify-center">
+                        {(['EASY', 'MEDIUM', 'HARD'] as const).map((diff) => {
+                          const isActive = difficulty === diff;
+                          let btnClass = "flex-1 py-3 rounded-xl font-black text-xs transition-all duration-300 border cursor-pointer ";
+                          if (isActive) {
+                            if (diff === 'EASY') btnClass += "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-[1.03]";
+                            else if (diff === 'MEDIUM') btnClass += "bg-amber-500 text-white border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-[1.03]";
+                            else btnClass += "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)] scale-[1.03]";
+                          } else {
+                            btnClass += "bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white";
+                          }
+                          return (
+                            <button
+                              key={diff}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDifficulty(diff);
+                              }}
+                              className={btnClass}
+                            >
+                              {diff}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Menu Actions */}
+                    <div className="flex flex-col gap-3 pointer-events-auto">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); startGame(); }}
+                        className="w-full py-4 rounded-xl font-black text-md text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 active:scale-95 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        {gameState === 'START' ? (
+                          <>
+                            <Play size={18} fill="currentColor" />
+                            Confirm & Start
+                          </>
+                        ) : (
+                          <>
+                            <RotateCcw size={18} />
+                            Confirm & Restart
+                          </>
+                        )}
+                      </button>
+
+                      <button 
+                        onClick={() => setAuthTab('LEADERBOARD')}
+                        className="w-full py-3 rounded-xl font-black text-xs text-slate-300 bg-white/5 hover:bg-white/10 border border-white/5 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <ListOrdered size={14} className="text-amber-400" />
+                        View Leaderboard
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 font-bold mt-4">
+                      {gameState === 'START' ? 'Press Space or click screen to jump once started' : 'Select difficulty and press Restart to play again'}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}
+
+        {/* Jumpscare Overlay */}
+        {jumpscareActive && (
+          <div className="fixed inset-0 z-50 bg-black flex items-center justify-center animate-jumpscare-shake overflow-hidden pointer-events-none">
+            <img 
+              src={jumpscareImg} 
+              alt="👻 JUMPSCARE 👻" 
+              className="w-screen h-screen object-cover scale-125"
+            />
+          </div>
+        )}
 
         </div>
       </div>

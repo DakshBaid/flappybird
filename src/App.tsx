@@ -30,7 +30,7 @@ export default function App() {
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
 
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
 
   // Handle window resize for full screen
   useEffect(() => {

@@ -97,6 +97,7 @@ export default function App() {
   const targetTriesRef = useRef(2); // Guaranteed trigger target (will choose 2 or 3 attempts)
   const jumpscareAudioRef = useRef<HTMLAudioElement | null>(null);
   const isGameOverTriggeredRef = useRef(false);
+  const remainingImagesRef = useRef<string[]>([]);
 
   const requestRef = useRef<number | undefined>(undefined);
 
@@ -313,8 +314,13 @@ export default function App() {
         '/jumpscares/Screenshot 2026-06-19 235947.png',
         '/jumpscares/Screenshot 2026-06-20 001111.png'
       ];
-      const randomImg = images[Math.floor(Math.random() * images.length)];
-      setJumpscareImg(randomImg);
+
+      // Shuffle images if remaining queue is empty, ensuring fully randomized non-repeating cycle
+      if (remainingImagesRef.current.length === 0) {
+        remainingImagesRef.current = [...images].sort(() => Math.random() - 0.5);
+      }
+      const nextImg = remainingImagesRef.current.pop() || images[0];
+      setJumpscareImg(nextImg);
       
       if (jumpscareAudioRef.current) {
         jumpscareAudioRef.current.currentTime = 0;

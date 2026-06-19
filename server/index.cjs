@@ -88,14 +88,11 @@ app.post('/api/scores', (req, res) => {
   }
 
   const db = readDB();
-  // Validate that user exists
+  // If user exists in DB, use their canonical username casing; otherwise fallback to guest username
   const userExists = db.users.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
-  if (!userExists) {
-    return res.status(400).json({ error: 'User does not exist' });
-  }
 
   const newScore = {
-    username: userExists.username,
+    username: userExists ? userExists.username : username.trim(),
     score: parseInt(score, 10),
     difficulty,
     timestamp: new Date().toISOString()

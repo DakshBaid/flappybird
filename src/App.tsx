@@ -93,11 +93,10 @@ export default function App() {
   // Jumpscare States
   const [jumpscareActive, setJumpscareActive] = useState(false);
   const [jumpscareImg, setJumpscareImg] = useState('');
-  const triesCountRef = useRef(0);
-  const targetTriesRef = useRef(2); // Guaranteed trigger target (will choose 2 or 3 attempts)
-  const jumpscareAudioRef = useRef<HTMLAudioElement | null>(null);
   const isGameOverTriggeredRef = useRef(false);
   const remainingImagesRef = useRef<string[]>([]);
+  const preloadedAudiosRef = useRef<Record<string, HTMLAudioElement>>({});
+  const remainingAudiosRef = useRef<string[]>([]);
 
   const requestRef = useRef<number | undefined>(undefined);
 
@@ -127,11 +126,21 @@ export default function App() {
       HARD: parseInt(hard, 10)
     });
 
-    // Initialize jumpscare audio
-    jumpscareAudioRef.current = new Audio('/jumpscares/fahh.mp3');
-    if (jumpscareAudioRef.current) {
-      jumpscareAudioRef.current.volume = 1.0;
-    }
+    // Preload jumpscare audios to memory cache
+    const audiosToPreload = [
+      '/jumpscares/fahh.mp3',
+      '/jumpscares/ganekajuice_memetemplatespro.mp3',
+      '/jumpscares/gian-hain-aap.mp3',
+      '/jumpscares/goofy-uhhh-indian-sound.mp3',
+      '/jumpscares/memetemplatespro.in MkbAagAmitabhBachchan.mp3',
+      '/jumpscares/modi-ji-bkl.mp3',
+      '/jumpscares/scream.mp3'
+    ];
+    audiosToPreload.forEach((src) => {
+      const audio = new Audio(src);
+      audio.volume = 1.0;
+      preloadedAudiosRef.current[src] = audio;
+    });
 
     // Preload jumpscare images to memory cache for zero-delay loading
     const imagesToPreload = [
@@ -142,7 +151,8 @@ export default function App() {
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
       '/jumpscares/Screenshot 2026-06-19 235947.png',
-      '/jumpscares/Screenshot 2026-06-20 001111.png'
+      '/jumpscares/Screenshot 2026-06-20 001111.png',
+      '/jumpscares/Screenshot 2026-06-20 004037.png'
     ];
     imagesToPreload.forEach((src) => {
       const img = new Image();
@@ -297,41 +307,50 @@ export default function App() {
       submitScoreToBackend(score, difficulty);
     }
 
-    // Jumpscare trigger logic (guaranteed to trigger every 2-3 attempts)
-    triesCountRef.current += 1;
-    if (triesCountRef.current >= targetTriesRef.current) {
-      triesCountRef.current = 0; // reset attempts count
-      // Randomly choose the next target attempts (either 2 or 3)
-      targetTriesRef.current = Math.floor(Math.random() * 2) + 2; 
+    // Jumpscare trigger logic: TRIGGER EVERY TIME
+    const images = [
+      '/jumpscares/scary_face.png', 
+      '/jumpscares/scary_face_2.png',
+      '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.56 AM.jpeg',
+      '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
+      '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
+      '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
+      '/jumpscares/Screenshot 2026-06-19 235947.png',
+      '/jumpscares/Screenshot 2026-06-20 001111.png',
+      '/jumpscares/Screenshot 2026-06-20 004037.png'
+    ];
 
-      const images = [
-        '/jumpscares/scary_face.png', 
-        '/jumpscares/scary_face_2.png',
-        '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.56 AM.jpeg',
-        '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
-        '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
-        '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
-        '/jumpscares/Screenshot 2026-06-19 235947.png',
-        '/jumpscares/Screenshot 2026-06-20 001111.png'
-      ];
-
-      // Shuffle images if remaining queue is empty, ensuring fully randomized non-repeating cycle
-      if (remainingImagesRef.current.length === 0) {
-        remainingImagesRef.current = [...images].sort(() => Math.random() - 0.5);
-      }
-      const nextImg = remainingImagesRef.current.pop() || images[0];
-      setJumpscareImg(nextImg);
-      
-      if (jumpscareAudioRef.current) {
-        jumpscareAudioRef.current.currentTime = 0;
-        jumpscareAudioRef.current.play().catch(e => console.error("Audio playback blocked", e));
-      }
-      
-      setJumpscareActive(true);
-      setTimeout(() => {
-        setJumpscareActive(false);
-      }, 1500);
+    // Shuffle images if remaining queue is empty, ensuring fully randomized non-repeating cycle
+    if (remainingImagesRef.current.length === 0) {
+      remainingImagesRef.current = [...images].sort(() => Math.random() - 0.5);
     }
+    const nextImg = remainingImagesRef.current.pop() || images[0];
+    setJumpscareImg(nextImg);
+    
+    // Audio selection: Shuffle audios if remaining queue is empty, ensuring fully randomized non-repeating cycle
+    const audioSources = [
+      '/jumpscares/fahh.mp3',
+      '/jumpscares/ganekajuice_memetemplatespro.mp3',
+      '/jumpscares/gian-hain-aap.mp3',
+      '/jumpscares/goofy-uhhh-indian-sound.mp3',
+      '/jumpscares/memetemplatespro.in MkbAagAmitabhBachchan.mp3',
+      '/jumpscares/modi-ji-bkl.mp3',
+      '/jumpscares/scream.mp3'
+    ];
+    
+    if (remainingAudiosRef.current.length === 0) {
+      remainingAudiosRef.current = [...audioSources].sort(() => Math.random() - 0.5);
+    }
+    const nextAudioSrc = remainingAudiosRef.current.pop() || audioSources[0];
+    const audio = preloadedAudiosRef.current[nextAudioSrc] || new Audio(nextAudioSrc);
+    
+    audio.currentTime = 0;
+    audio.play().catch(e => console.error("Audio playback blocked", e));
+    
+    setJumpscareActive(true);
+    setTimeout(() => {
+      setJumpscareActive(false);
+    }, 1500);
   }, [score, difficulty, user, highScores]);
 
   // Ref to hold mutable state for the animation frame

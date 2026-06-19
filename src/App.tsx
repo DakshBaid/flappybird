@@ -131,6 +131,22 @@ export default function App() {
     if (jumpscareAudioRef.current) {
       jumpscareAudioRef.current.volume = 1.0;
     }
+
+    // Preload jumpscare images to memory cache for zero-delay loading
+    const imagesToPreload = [
+      '/jumpscares/scary_face.png', 
+      '/jumpscares/scary_face_2.png',
+      '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.56 AM.jpeg',
+      '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
+      '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
+      '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
+      '/jumpscares/Screenshot 2026-06-19 235947.png',
+      '/jumpscares/Screenshot 2026-06-20 001111.png'
+    ];
+    imagesToPreload.forEach((src) => {
+      const img = new Image();
+      img.src = src;
+    });
   }, []);
 
   // Fetch leaderboard when tab opens
@@ -906,21 +922,13 @@ export default function App() {
 
         {/* Jumpscare Overlay */}
         {jumpscareActive && (
-          <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center pointer-events-none">
-            <div className="bg-slate-900 border-4 border-rose-500/80 p-5 rounded-[2rem] shadow-[0_0_50px_rgba(244,63,94,0.35)] max-w-md w-[90%] animate-jumpscare-shake flex flex-col items-center gap-4 text-center">
-              <div className="text-rose-500 text-3xl font-black tracking-widest animate-pulse">
-                ⚠️ FATAL ERROR ⚠️
-              </div>
-              <div className="w-full bg-black/40 rounded-xl overflow-hidden border border-white/5 flex items-center justify-center p-2">
-                <img 
-                  src={jumpscareImg} 
-                  alt="👻 JUMPSCARE 👻" 
-                  className="max-h-[50vh] max-w-full object-contain rounded-lg shadow-lg"
-                />
-              </div>
-              <div className="text-rose-400 font-mono text-xs uppercase tracking-wider font-bold">
-                Code execution crashed violently
-              </div>
+          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center pointer-events-none">
+            <div className="w-[90vw] h-[90vh] max-w-5xl max-h-[85vh] animate-jumpscare-shake flex items-center justify-center">
+              <img 
+                src={jumpscareImg} 
+                alt="👻 JUMPSCARE 👻" 
+                className="w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(244,63,94,0.6)]"
+              />
             </div>
           </div>
         )}

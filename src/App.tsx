@@ -146,13 +146,14 @@ export default function App() {
     const imagesToPreload = [
       '/jumpscares/scary_face.png', 
       '/jumpscares/scary_face_2.png',
-      '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.56 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
       '/jumpscares/Screenshot 2026-06-19 235947.png',
       '/jumpscares/Screenshot 2026-06-20 001111.png',
-      '/jumpscares/Screenshot 2026-06-20 004037.png'
+      '/jumpscares/Screenshot 2026-06-20 004037.png',
+      '/jumpscares/Screenshot 2026-06-20 005417.png',
+      '/jumpscares/Screenshot 2026-06-20 005422.png'
     ];
     imagesToPreload.forEach((src) => {
       const img = new Image();
@@ -311,13 +312,14 @@ export default function App() {
     const images = [
       '/jumpscares/scary_face.png', 
       '/jumpscares/scary_face_2.png',
-      '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.56 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
       '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
       '/jumpscares/Screenshot 2026-06-19 235947.png',
       '/jumpscares/Screenshot 2026-06-20 001111.png',
-      '/jumpscares/Screenshot 2026-06-20 004037.png'
+      '/jumpscares/Screenshot 2026-06-20 004037.png',
+      '/jumpscares/Screenshot 2026-06-20 005417.png',
+      '/jumpscares/Screenshot 2026-06-20 005422.png'
     ];
 
     // Shuffle images if remaining queue is empty, ensuring fully randomized non-repeating cycle

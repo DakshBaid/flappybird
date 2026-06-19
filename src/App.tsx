@@ -25,19 +25,19 @@ interface DifficultySettings {
 
 const DIFFICULTY_CONFIG: Record<Difficulty, DifficultySettings> = {
   EASY: {
-    pipeGap: 260,
-    spawnDistance: 340, // closer spawn distance for active play at slower speed
-    pipeSpeed: 2.3,
+    pipeGap: 280, // Very wide vertical gap
+    spawnDistance: 300, // Frequent pipes
+    pipeSpeed: 1.8, // Slow motion speed
   },
   MEDIUM: {
-    pipeGap: 210,
-    spawnDistance: 400,
-    pipeSpeed: 2.9,
+    pipeGap: 210, // Standard gap
+    spawnDistance: 390, // Standard spacing
+    pipeSpeed: 2.9, // Standard speed
   },
   HARD: {
-    pipeGap: 160,
-    spawnDistance: 460, // further spawn distance to allow reaction time at higher speed
-    pipeSpeed: 3.6,
+    pipeGap: 145, // Extremely narrow gap
+    spawnDistance: 480, // More spacing to allow reaction at high speed
+    pipeSpeed: 4.2, // Extremely fast speed
   },
 };
 
@@ -64,9 +64,9 @@ export default function App() {
   const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
   const [dimensions, setDimensions] = useState({
     width: Math.min(window.innerWidth, 480),
-    height: window.innerHeight
+    height: Math.min(window.innerHeight, 720)
   });
-  const [birdPos, setBirdPos] = useState(window.innerHeight / 2);
+  const [birdPos, setBirdPos] = useState(Math.min(window.innerHeight, 720) / 2);
   const [birdVelocity, setBirdVelocity] = useState(0);
   const [pipes, setPipes] = useState<PipeData[]>([]);
   const [score, setScore] = useState(0);
@@ -79,10 +79,10 @@ export default function App() {
     const handleResize = () => {
       setDimensions({
         width: Math.min(window.innerWidth, 480),
-        height: window.innerHeight
+        height: Math.min(window.innerHeight, 720)
       });
       if (gameState === 'START') {
-        setBirdPos(window.innerHeight / 2);
+        setBirdPos(Math.min(window.innerHeight, 720) / 2);
       }
     };
     window.addEventListener('resize', handleResize);
@@ -271,9 +271,9 @@ export default function App() {
   }, [jump]);
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-slate-950 font-sans select-none flex justify-center items-center">
+    <div className="w-screen h-screen overflow-hidden bg-slate-950 font-sans select-none flex justify-center items-center p-4">
       <div 
-        className="w-full max-w-[480px] h-full overflow-hidden relative bg-gradient-to-b from-sky-400 via-sky-300 to-sky-100 shadow-2xl border-x border-white/10"
+        className="w-full max-w-[480px] h-full max-h-[720px] rounded-[2rem] overflow-hidden relative bg-gradient-to-b from-sky-400 via-sky-300 to-sky-100 shadow-2xl border border-white/10"
         onClick={jump}
         onPointerDown={(e) => {
             e.preventDefault();
@@ -387,7 +387,11 @@ export default function App() {
 
           {/* Overlays */}
           {gameState !== 'PLAYING' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/50 backdrop-blur-sm z-40">
+            <div 
+              className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/50 backdrop-blur-sm z-40"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
               <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center transform transition-all border border-white/10 max-w-md w-full mx-4 text-white">
                 
                 <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 mb-2 drop-shadow-sm pb-1 tracking-wider uppercase">
@@ -430,17 +434,14 @@ export default function App() {
                   <div className="flex gap-2 justify-center">
                     {(['EASY', 'MEDIUM', 'HARD'] as const).map((diff) => {
                       const isActive = difficulty === diff;
-                      const styles = {
-                        EASY: isActive 
-                          ? 'bg-emerald-500 text-white border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-[1.03]' 
-                          : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white',
-                        MEDIUM: isActive 
-                          ? 'bg-amber-500 text-white border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-[1.03]' 
-                          : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white',
-                        HARD: isActive 
-                          ? 'bg-rose-500 text-white border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.4)] scale-[1.03]' 
-                          : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
-                      };
+                      let btnClass = "flex-1 py-3 rounded-xl font-black text-xs transition-all duration-300 border cursor-pointer ";
+                      if (isActive) {
+                        if (diff === 'EASY') btnClass += "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-[1.03]";
+                        else if (diff === 'MEDIUM') btnClass += "bg-amber-500 text-white border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-[1.03]";
+                        else btnClass += "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)] scale-[1.03]";
+                      } else {
+                        btnClass += "bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white";
+                      }
                       return (
                         <button
                           key={diff}
@@ -448,7 +449,7 @@ export default function App() {
                             e.stopPropagation();
                             setDifficulty(diff);
                           }}
-                          className={`flex-1 py-3 rounded-xl font-black text-xs transition-all duration-300 border cursor-pointer ${styles[diff]}`}
+                          className={btnClass}
                         >
                           {diff}
                         </button>

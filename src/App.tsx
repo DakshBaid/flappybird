@@ -6,7 +6,7 @@ const GRAVITY = 0.35;
 const JUMP_STRENGTH = -7;
 const PIPE_WIDTH = 90;
 const BIRD_SIZE = 50; // Increased size to fit the logo image nicely
-const BIRD_X = 150; // Bird's fixed horizontal position
+const BIRD_X = 120; // Bird's fixed horizontal position
 
 type GameState = 'START' | 'PLAYING' | 'GAME_OVER';
 type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
@@ -25,27 +25,45 @@ interface DifficultySettings {
 
 const DIFFICULTY_CONFIG: Record<Difficulty, DifficultySettings> = {
   EASY: {
-    pipeGap: 265,
-    spawnDistance: 500,
-    pipeSpeed: 2.2,
+    pipeGap: 260,
+    spawnDistance: 340, // closer spawn distance for active play at slower speed
+    pipeSpeed: 2.3,
   },
   MEDIUM: {
-    pipeGap: 215,
+    pipeGap: 210,
     spawnDistance: 400,
-    pipeSpeed: 2.8,
+    pipeSpeed: 2.9,
   },
   HARD: {
-    pipeGap: 165,
-    spawnDistance: 320,
-    pipeSpeed: 3.5,
+    pipeGap: 160,
+    spawnDistance: 460, // further spawn distance to allow reaction time at higher speed
+    pipeSpeed: 3.6,
   },
 };
+
+const PARTICLES = [
+  { symbol: '{ }', left: '5%', delay: '0s', size: '20px', duration: '25s' },
+  { symbol: '</>', left: '15%', delay: '5s', size: '24px', duration: '20s' },
+  { symbol: 'const', left: '25%', delay: '12s', size: '18px', duration: '28s' },
+  { symbol: 'import', left: '35%', delay: '2s', size: '16px', duration: '32s' },
+  { symbol: '[]', left: '45%', delay: '8s', size: '22px', duration: '22s' },
+  { symbol: '=>', left: '55%', delay: '15s', size: '20px', duration: '26s' },
+  { symbol: 'function', left: '65%', delay: '4s', size: '18px', duration: '30s' },
+  { symbol: 'let', left: '75%', delay: '10s', size: '24px', duration: '24s' },
+  { symbol: 'npm', left: '85%', delay: '1s', size: '20px', duration: '27s' },
+  { symbol: 'git', left: '95%', delay: '7s', size: '18px', duration: '29s' },
+  { symbol: '&&', left: '10%', delay: '18s', size: '22px', duration: '23s' },
+  { symbol: '||', left: '30%', delay: '22s', size: '20px', duration: '31s' },
+  { symbol: '===', left: '50%', delay: '14s', size: '16px', duration: '25s' },
+  { symbol: 'React', left: '70%', delay: '9s', size: '22px', duration: '21s' },
+  { symbol: 'Vite', left: '90%', delay: '16s', size: '18px', duration: '29s' },
+];
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('START');
   const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
   const [dimensions, setDimensions] = useState({
-    width: window.innerWidth,
+    width: Math.min(window.innerWidth, 480),
     height: window.innerHeight
   });
   const [birdPos, setBirdPos] = useState(window.innerHeight / 2);
@@ -60,7 +78,7 @@ export default function App() {
   useEffect(() => {
     const handleResize = () => {
       setDimensions({
-        width: window.innerWidth,
+        width: Math.min(window.innerWidth, 480),
         height: window.innerHeight
       });
       if (gameState === 'START') {
@@ -95,7 +113,7 @@ export default function App() {
     const minPipeHeight = 100;
     const maxPipeHeight = dimensions.height - config.pipeGap - 100 - GROUND_HEIGHT;
     const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
-    const initialPipeX = Math.max(BIRD_X + 250, Math.min(dimensions.width * 0.75, 650));
+    const initialPipeX = Math.max(BIRD_X + 200, Math.min(dimensions.width * 0.75, 400));
     
     setPipes([
       {
@@ -253,21 +271,38 @@ export default function App() {
   }, [jump]);
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-slate-950 font-sans select-none relative">
+    <div className="w-screen h-screen overflow-hidden bg-slate-950 font-sans select-none flex justify-center items-center">
       <div 
-        className="absolute inset-0 bg-gradient-to-b from-sky-400 via-sky-300 to-sky-100"
+        className="w-full max-w-[480px] h-full overflow-hidden relative bg-gradient-to-b from-sky-400 via-sky-300 to-sky-100 shadow-2xl border-x border-white/10"
         onClick={jump}
         onPointerDown={(e) => {
             e.preventDefault();
             jump();
         }}
       >
-        {/* Dynamic Background Clouds */}
-        <div className="absolute top-[10%] left-[15%] w-32 h-12 bg-white/70 rounded-full blur-[2px]"></div>
-        <div className="absolute top-[5%] right-[20%] w-48 h-16 bg-white/60 rounded-full blur-[3px]"></div>
-        <div className="absolute bottom-[30%] left-[25%] w-40 h-14 bg-white/50 rounded-full blur-[2px]"></div>
-        <div className="absolute top-[40%] right-[10%] w-24 h-8 bg-white/40 rounded-full blur-[2px]"></div>
-        <div className="absolute top-[20%] right-[45%] w-36 h-12 bg-white/40 rounded-full blur-[2px]"></div>
+        {/* Dynamic Floating Code Particles */}
+        {PARTICLES.map((p, idx) => (
+          <div
+            key={idx}
+            className="absolute font-mono font-bold text-sky-900/10 pointer-events-none select-none z-0"
+            style={{
+              left: p.left,
+              fontSize: p.size,
+              animation: `float-up ${p.duration} linear infinite`,
+              animationDelay: p.delay,
+              bottom: '-50px',
+            }}
+          >
+            {p.symbol}
+          </div>
+        ))}
+
+        {/* Dynamic Animated Clouds */}
+        <div className="absolute top-[10%] w-32 h-12 bg-white/70 rounded-full blur-[2px] animate-cloud-1" style={{ animationDelay: '-10s' }}></div>
+        <div className="absolute top-[5%] w-48 h-16 bg-white/60 rounded-full blur-[3px] animate-cloud-2" style={{ animationDelay: '-25s' }}></div>
+        <div className="absolute bottom-[30%] w-40 h-14 bg-white/50 rounded-full blur-[2px] animate-cloud-3" style={{ animationDelay: '-5s' }}></div>
+        <div className="absolute top-[40%] w-24 h-8 bg-white/40 rounded-full blur-[2px] animate-cloud-4" style={{ animationDelay: '-35s' }}></div>
+        <div className="absolute top-[20%] w-36 h-12 bg-white/40 rounded-full blur-[2px] animate-cloud-5" style={{ animationDelay: '-18s' }}></div>
 
         {/* Pipes */}
         {pipes.map((pipe, i) => (
@@ -352,40 +387,59 @@ export default function App() {
 
           {/* Overlays */}
           {gameState !== 'PLAYING' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-sm z-40">
-              <div className="bg-white/95 backdrop-blur-xl p-12 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center transform transition-all border-4 border-white/50 max-w-lg w-full mx-6">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/50 backdrop-blur-sm z-40">
+              <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center transform transition-all border border-white/10 max-w-md w-full mx-4 text-white">
                 
-                <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-600 mb-4 drop-shadow-sm pb-2">
+                <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 mb-2 drop-shadow-sm pb-1 tracking-wider uppercase">
                   Flappy Dev
                 </h1>
                 
-                <p className="text-slate-600 font-bold text-lg mb-10">
-                  {gameState === 'GAME_OVER' ? 'Oh no! You crashed.' : 'Press Space or Click to Fly'}
+                <p className="text-slate-400 font-bold text-sm mb-6">
+                  {gameState === 'GAME_OVER' ? '💻 You crashed the code!' : '🚀 Refactor and fly through the obstacles'}
                 </p>
-                
-                {gameState === 'GAME_OVER' && (
-                  <div className="bg-slate-100/80 rounded-3xl p-6 mb-8 border-2 border-slate-200 shadow-inner">
-                     <p className="text-sm text-slate-500 uppercase tracking-widest font-black mb-2">Final Score</p>
-                     <p className="text-7xl font-black text-slate-800 drop-shadow-sm">{score}</p>
+
+                {/* Score Dashboard */}
+                {gameState === 'START' ? (
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-amber-500/20 text-amber-400 rounded-xl">
+                        <Trophy size={22} fill="currentColor" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Personal Best</p>
+                        <p className="text-2xl font-black text-white">{highScore}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
+                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Score</p>
+                      <p className="text-3xl font-black text-sky-400">{score}</p>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
+                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Best</p>
+                      <p className="text-3xl font-black text-amber-400">{highScore}</p>
+                    </div>
                   </div>
                 )}
 
                 {/* Difficulty Selector */}
                 <div className="mb-8 pointer-events-auto">
-                  <p className="text-xs text-slate-400 uppercase tracking-widest font-black mb-3">Select Difficulty</p>
+                  <p className="text-xs text-slate-400 uppercase font-black tracking-widest mb-3 text-left pl-1">Select Difficulty</p>
                   <div className="flex gap-2 justify-center">
                     {(['EASY', 'MEDIUM', 'HARD'] as const).map((diff) => {
                       const isActive = difficulty === diff;
                       const styles = {
                         EASY: isActive 
-                          ? 'bg-emerald-500 text-white border-emerald-500 shadow-[0_4px_12px_rgba(16,185,129,0.3)] scale-[1.05]' 
-                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700',
+                          ? 'bg-emerald-500 text-white border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-[1.03]' 
+                          : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white',
                         MEDIUM: isActive 
-                          ? 'bg-amber-500 text-white border-amber-500 shadow-[0_4px_12px_rgba(245,158,11,0.3)] scale-[1.05]' 
-                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700',
+                          ? 'bg-amber-500 text-white border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-[1.03]' 
+                          : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white',
                         HARD: isActive 
-                          ? 'bg-rose-500 text-white border-rose-500 shadow-[0_4px_12px_rgba(244,63,94,0.3)] scale-[1.05]' 
-                          : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700'
+                          ? 'bg-rose-500 text-white border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.4)] scale-[1.03]' 
+                          : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
                       };
                       return (
                         <button
@@ -394,7 +448,7 @@ export default function App() {
                             e.stopPropagation();
                             setDifficulty(diff);
                           }}
-                          className={`flex-1 px-4 py-3 rounded-2xl font-black text-sm transition-all duration-200 border-2 cursor-pointer ${styles[diff]}`}
+                          className={`flex-1 py-3 rounded-xl font-black text-xs transition-all duration-300 border cursor-pointer ${styles[diff]}`}
                         >
                           {diff}
                         </button>
@@ -405,14 +459,24 @@ export default function App() {
 
                 <button 
                   onClick={(e) => { e.stopPropagation(); startGame(); }}
-                  className="group relative inline-flex items-center justify-center px-10 py-5 font-black text-white text-xl transition-all duration-300 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-blue-500 hover:scale-[1.02] hover:shadow-[0_15px_30px_rgba(59,130,246,0.5)] active:scale-95 w-full pointer-events-auto"
+                  className="w-full py-4 rounded-xl font-black text-md text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 active:scale-95 transition-all duration-300 pointer-events-auto cursor-pointer flex items-center justify-center gap-2"
                 >
-                  {gameState === 'GAME_OVER' ? (
-                    <><RotateCcw size={28} className="mr-3 group-hover:-rotate-180 transition-transform duration-700" /> Play Again</>
+                  {gameState === 'START' ? (
+                    <>
+                      <Play size={18} fill="currentColor" />
+                      Confirm & Start
+                    </>
                   ) : (
-                    <><Play size={28} className="mr-3" /> Start Game</>
+                    <>
+                      <RotateCcw size={18} />
+                      Confirm & Restart
+                    </>
                   )}
                 </button>
+
+                <p className="text-[10px] text-slate-500 font-bold mt-4">
+                  {gameState === 'START' ? 'Press Space or click screen to jump once started' : 'Select difficulty and press Restart to play again'}
+                </p>
               </div>
             </div>
           )}

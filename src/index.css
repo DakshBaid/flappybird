@@ -5,3 +5,35 @@
     @apply m-0 p-0 overflow-hidden font-sans;
   }
 }
+
+@keyframes drift-left {
+  0% {
+    transform: translateX(105vw);
+  }
+  100% {
+    transform: translateX(-20vw);
+  }
+}
+
+@keyframes float-up {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.15;
+  }
+  90% {
+    opacity: 0.15;
+  }
+  100% {
+    transform: translateY(-110vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.animate-cloud-1 { animation: drift-left 50s linear infinite; }
+.animate-cloud-2 { animation: drift-left 35s linear infinite; }
+.animate-cloud-3 { animation: drift-left 60s linear infinite; }
+.animate-cloud-4 { animation: drift-left 45s linear infinite; }
+.animate-cloud-5 { animation: drift-left 55s linear infinite; }

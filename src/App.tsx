@@ -92,7 +92,9 @@ export default function App() {
   const [jumpscareActive, setJumpscareActive] = useState(false);
   const [jumpscareImg, setJumpscareImg] = useState('');
   const triesCountRef = useRef(0);
+  const targetTriesRef = useRef(2); // Guaranteed trigger target (will choose 2 or 3 attempts)
   const jumpscareAudioRef = useRef<HTMLAudioElement | null>(null);
+  const isGameOverTriggeredRef = useRef(false);
 
   const requestRef = useRef<number | undefined>(undefined);
 
@@ -123,7 +125,7 @@ export default function App() {
     });
 
     // Initialize jumpscare audio
-    jumpscareAudioRef.current = new Audio('https://www.soundjay.com/human/sounds/scream-1.mp3');
+    jumpscareAudioRef.current = new Audio('/jumpscares/fahh.mp3');
     if (jumpscareAudioRef.current) {
       jumpscareAudioRef.current.volume = 1.0;
     }
@@ -226,6 +228,7 @@ export default function App() {
   }, [gameState]);
 
   const startGame = () => {
+    isGameOverTriggeredRef.current = false;
     setGameState('PLAYING');
     setBirdPos(dimensions.height / 2);
     setBirdVelocity(JUMP_STRENGTH);
@@ -249,6 +252,8 @@ export default function App() {
   };
 
   const gameOver = useCallback(() => {
+    if (isGameOverTriggeredRef.current) return;
+    isGameOverTriggeredRef.current = true;
     setGameState('GAME_OVER');
     
     // Save difficulty-specific local high scores
@@ -266,16 +271,22 @@ export default function App() {
       submitScoreToBackend(score, difficulty);
     }
 
-    // Jumpscare trigger logic (occurs randomly every 2-3 attempts)
+    // Jumpscare trigger logic (guaranteed to trigger every 2-3 attempts)
     triesCountRef.current += 1;
-    if (triesCountRef.current >= 2 && Math.random() < 0.45) {
-      triesCountRef.current = 0;
+    if (triesCountRef.current >= targetTriesRef.current) {
+      triesCountRef.current = 0; // reset attempts count
+      // Randomly choose the next target attempts (either 2 or 3)
+      targetTriesRef.current = Math.floor(Math.random() * 2) + 2; 
+
       const images = [
         '/jumpscares/scary_face.png', 
         '/jumpscares/scary_face_2.png',
         '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.56 AM.jpeg',
         '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
-        '/jumpscares/Screenshot 2026-06-19 235947.png'
+        '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
+        '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
+        '/jumpscares/Screenshot 2026-06-19 235947.png',
+        '/jumpscares/Screenshot 2026-06-20 001111.png'
       ];
       const randomImg = images[Math.floor(Math.random() * images.length)];
       setJumpscareImg(randomImg);

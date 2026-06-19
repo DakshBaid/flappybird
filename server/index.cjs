@@ -104,7 +104,7 @@ app.post('/api/scores', (req, res) => {
   res.status(201).json({ message: 'Score saved successfully', score: newScore });
 });
 
-// 4. Leaderboard Endpoint: Get Top Scores
+// 4. Leaderboard Endpoint: Get Top Scores (Case-insensitive user aggregation)
 app.get('/api/scores/leaderboard', (req, res) => {
   const { difficulty } = req.query;
   if (!difficulty) {
@@ -115,11 +115,12 @@ app.get('/api/scores/leaderboard', (req, res) => {
   // Filter by difficulty
   const filtered = db.scores.filter(s => s.difficulty.toUpperCase() === difficulty.toUpperCase());
 
-  // Aggregate high score per user
+  // Aggregate high score per user case-insensitively
   const userMaxScores = {};
   filtered.forEach(s => {
-    if (!userMaxScores[s.username] || s.score > userMaxScores[s.username].score) {
-      userMaxScores[s.username] = s;
+    const key = s.username.toLowerCase();
+    if (!userMaxScores[key] || s.score > userMaxScores[key].score) {
+      userMaxScores[key] = s;
     }
   });
 
@@ -129,6 +130,30 @@ app.get('/api/scores/leaderboard', (req, res) => {
     .slice(0, 10);
 
   res.status(200).json(leaderboard);
+});
+
+// 5. Personal Best Endpoint: Get user's high score per difficulty
+app.get('/api/scores/personal-best', (req, res) => {
+  const { username } = req.query;
+  if (!username) {
+    return res.status(400).json({ error: 'Username parameter is required' });
+  }
+
+  const db = readDB();
+  const personalBest = { EASY: 0, MEDIUM: 0, HARD: 0 };
+
+  db.scores.forEach(s => {
+    if (s.username.toLowerCase() === username.trim().toLowerCase()) {
+      const diff = s.difficulty.toUpperCase();
+      if (diff === 'EASY' || diff === 'MEDIUM' || diff === 'HARD') {
+        if (s.score > personalBest[diff]) {
+          personalBest[diff] = s.score;
+        }
+      }
+    }
+  });
+
+  res.status(200).json(personalBest);
 });
 
 // Start server

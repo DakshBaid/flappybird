@@ -59,6 +59,60 @@ const PARTICLES = [
   { symbol: 'Vite', left: '90%', delay: '16s', size: '18px', duration: '29s' },
 ];
 
+const JUMPSCARE_IMAGES = [
+  '/jumpscares/whatsapp_image_1.jpeg',
+  '/jumpscares/whatsapp_image_2.jpeg',
+  '/jumpscares/whatsapp_image_3.jpeg',
+  '/jumpscares/screenshot_1.png',
+  '/jumpscares/screenshot_2.png',
+  '/jumpscares/screenshot_3.png',
+  '/jumpscares/screenshot_4.png',
+  '/jumpscares/screenshot_5.png'
+];
+
+const JUMPSCARE_AUDIOS = [
+  '/jumpscares/fahh.mp3',
+  '/jumpscares/ganekajuice.mp3',
+  '/jumpscares/gian_hain_aap.mp3',
+  '/jumpscares/goofy_uhhh.mp3',
+  '/jumpscares/amitabh_aag.mp3',
+  '/jumpscares/modi_ji.mp3'
+];
+
+const BackgroundParticles = React.memo(() => {
+  return (
+    <>
+      {PARTICLES.map((p, idx) => (
+        <div
+          key={idx}
+          className="absolute font-mono font-bold text-sky-900/10 pointer-events-none select-none z-0"
+          style={{
+            left: p.left,
+            fontSize: p.size,
+            animation: `float-up ${p.duration} linear infinite`,
+            animationDelay: p.delay,
+            bottom: '-50px',
+          }}
+        >
+          {p.symbol}
+        </div>
+      ))}
+    </>
+  );
+});
+
+const BackgroundClouds = React.memo(() => {
+  return (
+    <>
+      <div className="absolute top-[10%] w-32 h-12 bg-white/70 rounded-full blur-[2px] animate-cloud-1" style={{ animationDelay: '-10s' }}></div>
+      <div className="absolute top-[5%] w-48 h-16 bg-white/60 rounded-full blur-[3px] animate-cloud-2" style={{ animationDelay: '-25s' }}></div>
+      <div className="absolute bottom-[30%] w-40 h-14 bg-white/50 rounded-full blur-[2px] animate-cloud-3" style={{ animationDelay: '-5s' }}></div>
+      <div className="absolute top-[40%] w-24 h-8 bg-white/40 rounded-full blur-[2px] animate-cloud-4" style={{ animationDelay: '-35s' }}></div>
+      <div className="absolute top-[20%] w-36 h-12 bg-white/40 rounded-full blur-[2px] animate-cloud-5" style={{ animationDelay: '-18s' }}></div>
+    </>
+  );
+});
+
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('START');
   const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
@@ -97,6 +151,7 @@ export default function App() {
   const remainingImagesRef = useRef<string[]>([]);
   const preloadedAudiosRef = useRef<Record<string, HTMLAudioElement>>({});
   const remainingAudiosRef = useRef<string[]>([]);
+  const preloadedImagesRef = useRef<HTMLImageElement[]>([]);
 
   const requestRef = useRef<number | undefined>(undefined);
 
@@ -127,43 +182,63 @@ export default function App() {
     });
 
     // Preload jumpscare audios to memory cache
-    const audiosToPreload = [
-      '/jumpscares/fahh.mp3',
-      '/jumpscares/ganekajuice_memetemplatespro.mp3',
-      '/jumpscares/gian-hain-aap.mp3',
-      '/jumpscares/goofy-uhhh-indian-sound.mp3',
-      '/jumpscares/memetemplatespro.in MkbAagAmitabhBachchan.mp3',
-      '/jumpscares/modi-ji-bkl.mp3'
-    ];
-    audiosToPreload.forEach((src) => {
+    JUMPSCARE_AUDIOS.forEach((src) => {
       const audio = new Audio(src);
+      audio.preload = 'auto';
       audio.volume = 1.0;
+      audio.load();
       preloadedAudiosRef.current[src] = audio;
     });
 
-    // Preload jumpscare images to memory cache for zero-delay loading
-    const imagesToPreload = [
-      '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
-      '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
-      '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
-      '/jumpscares/Screenshot 2026-06-19 235947.png',
-      '/jumpscares/Screenshot 2026-06-20 001111.png',
-      '/jumpscares/Screenshot 2026-06-20 004037.png',
-      '/jumpscares/Screenshot 2026-06-20 005417.png',
-      '/jumpscares/Screenshot 2026-06-20 005422.png'
-    ];
-    imagesToPreload.forEach((src) => {
+    // Preload jumpscare images to memory cache for zero-delay loading and force GPU decode
+    const preloadedImages: HTMLImageElement[] = [];
+    JUMPSCARE_IMAGES.forEach((src) => {
       const img = new Image();
       img.src = src;
+      img.decode()
+        .then(() => console.log(`Decoded successfully: ${src}`))
+        .catch((err) => console.warn(`Decoding skipped for image ${src}:`, err));
+      preloadedImages.push(img);
     });
+    preloadedImagesRef.current = preloadedImages;
   }, []);
 
-  // Fetch leaderboard when tab opens
+  // Fetch and poll leaderboard when tab opens
   useEffect(() => {
     if (authTab === 'LEADERBOARD') {
       fetchLeaderboard(difficulty);
+      const interval = setInterval(() => {
+        fetchLeaderboard(difficulty);
+      }, 5000);
+      return () => clearInterval(interval);
     }
   }, [authTab, difficulty]);
+
+  // Sync personal bests when user changes (on login/register/guest start/reload)
+  useEffect(() => {
+    if (user) {
+      fetchPersonalBests(user);
+    }
+  }, [user]);
+
+  const fetchPersonalBests = async (username: string) => {
+    try {
+      const res = await fetch(`/api/scores/personal-best?username=${encodeURIComponent(username)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setHighScores({
+          EASY: data.EASY || 0,
+          MEDIUM: data.MEDIUM || 0,
+          HARD: data.HARD || 0
+        });
+        localStorage.setItem('flappyHighScore_EASY', (data.EASY || 0).toString());
+        localStorage.setItem('flappyHighScore_MEDIUM', (data.MEDIUM || 0).toString());
+        localStorage.setItem('flappyHighScore_HARD', (data.HARD || 0).toString());
+      }
+    } catch (err) {
+      console.error('Error fetching personal bests:', err);
+    }
+  };
 
   const fetchLeaderboard = async (diff: Difficulty) => {
     setLoadingLeaderboard(true);
@@ -231,6 +306,11 @@ export default function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('flappyUser');
+    // Reset high scores on logout
+    setHighScores({ EASY: 0, MEDIUM: 0, HARD: 0 });
+    localStorage.removeItem('flappyHighScore_EASY');
+    localStorage.removeItem('flappyHighScore_MEDIUM');
+    localStorage.removeItem('flappyHighScore_HARD');
   };
 
   const handleGuestPlay = (e: React.FormEvent) => {
@@ -245,11 +325,14 @@ export default function App() {
   const submitScoreToBackend = async (finalScore: number, finalDiff: Difficulty) => {
     if (!user) return;
     try {
-      await fetch('/api/scores', {
+      const res = await fetch('/api/scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: user, score: finalScore, difficulty: finalDiff })
       });
+      if (res.ok) {
+        fetchPersonalBests(user);
+      }
     } catch (err) {
       console.error('Failed to submit score to backend:', err);
     }
@@ -264,7 +347,9 @@ export default function App() {
   const startGame = () => {
     isGameOverTriggeredRef.current = false;
     setGameState('PLAYING');
-    setBirdPos(dimensions.height / 2);
+    
+    const startBirdPos = dimensions.height / 2;
+    setBirdPos(startBirdPos);
     setBirdVelocity(JUMP_STRENGTH);
     
     // Spawn the first pipe closer to reduce starting gap
@@ -275,14 +360,25 @@ export default function App() {
     const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
     const initialPipeX = Math.max(BIRD_X + 250, Math.min(dimensions.width * 0.75, 650));
     
-    setPipes([
+    const initialPipes = [
       {
         x: initialPipeX,
         topHeight,
         passed: false,
       }
-    ]);
+    ];
+    setPipes(initialPipes);
     setScore(0);
+
+    // Update stateRef immediately to avoid game loop reading stale initial values
+    stateRef.current = {
+      birdPos: startBirdPos,
+      birdVelocity: JUMP_STRENGTH,
+      pipes: initialPipes,
+      gameState: 'PLAYING',
+      dimensions,
+      difficulty
+    };
   };
 
   const gameOver = useCallback(() => {
@@ -306,38 +402,18 @@ export default function App() {
     }
 
     // Jumpscare trigger logic: TRIGGER EVERY TIME
-    const images = [
-      '/jumpscares/WhatsApp Image 2026-06-20 at 12.05.57 AM.jpeg',
-      '/jumpscares/WhatsApp Image 2026-06-20 at 12.07.46 AM.jpeg',
-      '/jumpscares/WhatsApp Image 2026-06-20 at 12.08.30 AM.jpeg',
-      '/jumpscares/Screenshot 2026-06-19 235947.png',
-      '/jumpscares/Screenshot 2026-06-20 001111.png',
-      '/jumpscares/Screenshot 2026-06-20 004037.png',
-      '/jumpscares/Screenshot 2026-06-20 005417.png',
-      '/jumpscares/Screenshot 2026-06-20 005422.png'
-    ];
-
     // Shuffle images if remaining queue is empty, ensuring fully randomized non-repeating cycle
     if (remainingImagesRef.current.length === 0) {
-      remainingImagesRef.current = [...images].sort(() => Math.random() - 0.5);
+      remainingImagesRef.current = [...JUMPSCARE_IMAGES].sort(() => Math.random() - 0.5);
     }
-    const nextImg = remainingImagesRef.current.pop() || images[0];
+    const nextImg = remainingImagesRef.current.pop() || JUMPSCARE_IMAGES[0];
     setJumpscareImg(nextImg);
     
     // Audio selection: Shuffle audios if remaining queue is empty, ensuring fully randomized non-repeating cycle
-    const audioSources = [
-      '/jumpscares/fahh.mp3',
-      '/jumpscares/ganekajuice_memetemplatespro.mp3',
-      '/jumpscares/gian-hain-aap.mp3',
-      '/jumpscares/goofy-uhhh-indian-sound.mp3',
-      '/jumpscares/memetemplatespro.in MkbAagAmitabhBachchan.mp3',
-      '/jumpscares/modi-ji-bkl.mp3'
-    ];
-    
     if (remainingAudiosRef.current.length === 0) {
-      remainingAudiosRef.current = [...audioSources].sort(() => Math.random() - 0.5);
+      remainingAudiosRef.current = [...JUMPSCARE_AUDIOS].sort(() => Math.random() - 0.5);
     }
-    const nextAudioSrc = remainingAudiosRef.current.pop() || audioSources[0];
+    const nextAudioSrc = remainingAudiosRef.current.pop() || JUMPSCARE_AUDIOS[0];
     const audio = preloadedAudiosRef.current[nextAudioSrc] || new Audio(nextAudioSrc);
     
     audio.currentTime = 0;
@@ -367,46 +443,105 @@ export default function App() {
       // Ground offset (visual ground height)
       const GROUND_HEIGHT = 40;
       
-      // Update Bird
+      // 1. Update Bird
       let newVelocity = currentState.birdVelocity + GRAVITY;
       let newBirdPos = currentState.birdPos + newVelocity;
+
+      let crashed = false;
 
       // Floor / Ceiling collisions
       if (newBirdPos >= height - BIRD_SIZE - GROUND_HEIGHT) {
         newBirdPos = height - BIRD_SIZE - GROUND_HEIGHT;
-        gameOver();
+        crashed = true;
       }
       if (newBirdPos <= 0) {
         newBirdPos = 0;
-        gameOver();
+        crashed = true;
       }
 
+      // 2. Update Pipes, collision check, and scoring
+      let scoreIncrement = 0;
+      let nextPipes = currentState.pipes.map((pipe) => {
+        const nextX = pipe.x - config.pipeSpeed;
+        let passed = pipe.passed;
+        
+        // Tighter hitboxes
+        const birdRect = {
+          left: BIRD_X + 5,
+          right: BIRD_X + BIRD_SIZE - 5,
+          top: newBirdPos + 5,
+          bottom: newBirdPos + BIRD_SIZE - 5,
+        };
+
+        const topPipeRect = {
+          left: nextX,
+          right: nextX + PIPE_WIDTH,
+          top: 0,
+          bottom: pipe.topHeight,
+        };
+        
+        const bottomPipeRect = {
+          left: nextX,
+          right: nextX + PIPE_WIDTH,
+          top: pipe.topHeight + config.pipeGap,
+          bottom: height,
+        };
+
+        const hasCollision = (rect1: any, rect2: any) => {
+          return (
+            rect1.left < rect2.right &&
+            rect1.right > rect2.left &&
+            rect1.top < rect2.bottom &&
+            rect1.bottom > rect2.top
+          );
+        };
+
+        if (hasCollision(birdRect, topPipeRect) || hasCollision(birdRect, bottomPipeRect)) {
+          crashed = true;
+        }
+
+        if (nextX + PIPE_WIDTH < birdRect.left && !passed) {
+          passed = true;
+          scoreIncrement++;
+        }
+
+        return { ...pipe, x: nextX, passed };
+      });
+
+      // Filter off-screen pipes
+      nextPipes = nextPipes.filter((pipe) => pipe.x > -PIPE_WIDTH * 2);
+
+      // Spawn new pipe if needed
+      const spawnDistance = config.spawnDistance; 
+      if (nextPipes.length === 0 || nextPipes[nextPipes.length - 1].x < width - spawnDistance) {
+        const minPipeHeight = 100;
+        const maxPipeHeight = height - config.pipeGap - 100 - GROUND_HEIGHT;
+        const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
+        
+        nextPipes.push({
+          x: width,
+          topHeight,
+          passed: false,
+        });
+      }
+
+      // 3. Apply state updates and sync stateRef synchronously
       setBirdPos(newBirdPos);
       setBirdVelocity(newVelocity);
+      setPipes(nextPipes);
 
-      // Update Pipes
-      setPipes((currentPipes) => {
-        let newPipes = currentPipes
-          .map((pipe) => ({ ...pipe, x: pipe.x - config.pipeSpeed }))
-          .filter((pipe) => pipe.x > -PIPE_WIDTH * 2);
+      stateRef.current.birdPos = newBirdPos;
+      stateRef.current.birdVelocity = newVelocity;
+      stateRef.current.pipes = nextPipes;
 
-        // Spawn new pipe based on screen width
-        // Spawn when the last pipe is far enough away
-        const spawnDistance = config.spawnDistance; 
-        
-        if (newPipes.length === 0 || newPipes[newPipes.length - 1].x < width - spawnDistance) {
-          const minPipeHeight = 100;
-          const maxPipeHeight = height - config.pipeGap - 100 - GROUND_HEIGHT;
-          const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
-          
-          newPipes.push({
-            x: width,
-            topHeight,
-            passed: false,
-          });
-        }
-        return newPipes;
-      });
+      if (scoreIncrement > 0) {
+        setScore((s) => s + scoreIncrement);
+      }
+
+      if (crashed) {
+        gameOver();
+        return; // Terminate loop
+      }
 
       requestRef.current = requestAnimationFrame(gameLoop);
     };
@@ -417,62 +552,6 @@ export default function App() {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
   }, [gameState, gameOver]);
-
-  // Collision and Score Detection
-  useEffect(() => {
-    if (gameState !== 'PLAYING') return;
-
-    const config = DIFFICULTY_CONFIG[difficulty];
-    const birdRect = {
-      left: BIRD_X + 5, // Tighter horizontal hitbox for the image
-      right: BIRD_X + BIRD_SIZE - 5,
-      top: birdPos + 5, // Tighter vertical hitbox
-      bottom: birdPos + BIRD_SIZE - 5,
-    };
-
-    let crashed = false;
-
-    for (let pipe of pipes) {
-      // Top pipe rect
-      const topPipeRect = {
-        left: pipe.x,
-        right: pipe.x + PIPE_WIDTH,
-        top: 0,
-        bottom: pipe.topHeight,
-      };
-      
-      // Bottom pipe rect
-      const bottomPipeRect = {
-        left: pipe.x,
-        right: pipe.x + PIPE_WIDTH,
-        top: pipe.topHeight + config.pipeGap,
-        bottom: dimensions.height,
-      };
-
-      const hasCollision = (rect1: any, rect2: any) => {
-        return (
-          rect1.left < rect2.right &&
-          rect1.right > rect2.left &&
-          rect1.top < rect2.bottom &&
-          rect1.bottom > rect2.top
-        );
-      };
-
-      if (hasCollision(birdRect, topPipeRect) || hasCollision(birdRect, bottomPipeRect)) {
-        crashed = true;
-      }
-
-      // Check passing for score
-      if (pipe.x + PIPE_WIDTH < birdRect.left && !pipe.passed) {
-        setScore((s) => s + 1);
-        setPipes((p) => p.map(p2 => p2 === pipe ? { ...p2, passed: true } : p2));
-      }
-    }
-
-    if (crashed) {
-      gameOver();
-    }
-  }, [birdPos, pipes, gameState, gameOver, dimensions.height, difficulty]);
 
   // Keyboard support
   useEffect(() => {
@@ -497,28 +576,10 @@ export default function App() {
         }}
       >
         {/* Dynamic Floating Code Particles */}
-        {PARTICLES.map((p, idx) => (
-          <div
-            key={idx}
-            className="absolute font-mono font-bold text-sky-900/10 pointer-events-none select-none z-0"
-            style={{
-              left: p.left,
-              fontSize: p.size,
-              animation: `float-up ${p.duration} linear infinite`,
-              animationDelay: p.delay,
-              bottom: '-50px',
-            }}
-          >
-            {p.symbol}
-          </div>
-        ))}
+        <BackgroundParticles />
 
         {/* Dynamic Animated Clouds */}
-        <div className="absolute top-[10%] w-32 h-12 bg-white/70 rounded-full blur-[2px] animate-cloud-1" style={{ animationDelay: '-10s' }}></div>
-        <div className="absolute top-[5%] w-48 h-16 bg-white/60 rounded-full blur-[3px] animate-cloud-2" style={{ animationDelay: '-25s' }}></div>
-        <div className="absolute bottom-[30%] w-40 h-14 bg-white/50 rounded-full blur-[2px] animate-cloud-3" style={{ animationDelay: '-5s' }}></div>
-        <div className="absolute top-[40%] w-24 h-8 bg-white/40 rounded-full blur-[2px] animate-cloud-4" style={{ animationDelay: '-35s' }}></div>
-        <div className="absolute top-[20%] w-36 h-12 bg-white/40 rounded-full blur-[2px] animate-cloud-5" style={{ animationDelay: '-18s' }}></div>
+        <BackgroundClouds />
 
         {/* Pipes */}
         {pipes.map((pipe, i) => (
@@ -941,18 +1002,29 @@ export default function App() {
             </div>
           )}
 
-        {/* Jumpscare Overlay */}
-        {jumpscareActive && (
-          <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center pointer-events-none">
-            <div className="w-[90vw] h-[90vh] max-w-5xl max-h-[85vh] animate-jumpscare-shake flex items-center justify-center">
+        {/* Jumpscare Overlay (Always mounted to ensure pre-rendered images stay cached and decoded) */}
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center pointer-events-none transition-opacity duration-[50ms]"
+          style={{ 
+            opacity: jumpscareActive ? 1 : 0,
+            visibility: jumpscareActive ? 'visible' : 'hidden'
+          }}
+        >
+          <div className={`w-[90vw] h-[90vh] max-w-5xl max-h-[85vh] flex items-center justify-center ${
+            jumpscareActive ? 'animate-jumpscare-shake' : ''
+          }`}>
+            {JUMPSCARE_IMAGES.map((src) => (
               <img 
-                src={jumpscareImg} 
+                key={src}
+                src={src} 
                 alt="👻 JUMPSCARE 👻" 
-                className="w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(244,63,94,0.6)]"
+                className={`w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(244,63,94,0.6)] ${
+                  jumpscareImg === src ? 'block' : 'hidden'
+                }`}
               />
-            </div>
+            ))}
           </div>
-        )}
+        </div>
 
         </div>
       </div>

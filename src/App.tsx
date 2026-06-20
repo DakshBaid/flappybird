@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, RotateCcw, Trophy, User, Lock, LogOut, ListOrdered, X } from 'lucide-react';
+import { Play, RotateCcw, Trophy, User, LogOut, ListOrdered, X } from 'lucide-react';
 
 // Slower gameplay constants
 const GRAVITY = 0.35;
@@ -116,15 +116,11 @@ export default function App() {
 
   // Auth States
   const [user, setUser] = useState<string | null>(localStorage.getItem('flappyUser') || null);
-  const [authTab, setAuthTab] = useState<'LOGIN' | 'REGISTER' | 'LEADERBOARD' | null>(null);
+  const [authTab, setAuthTab] = useState<'LEADERBOARD' | null>(null);
   const [usernameInput, setUsernameInput] = useState('');
-  const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState('');
-  const [authMessage, setAuthMessage] = useState('');
   const [leaderboard, setLeaderboard] = useState<{ username: string, score: number, timestamp: string }[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
-  const [compulsoryTab, setCompulsoryTab] = useState<'LOGIN' | 'REGISTER' | 'GUEST'>('LOGIN');
-  const [guestNameInput, setGuestNameInput] = useState('');
 
   // Game Over and Audio Ref
   const isGameOverTriggeredRef = useRef(false);
@@ -218,52 +214,17 @@ export default function App() {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleSetUsername = (e: React.FormEvent) => {
     e.preventDefault();
-    setAuthError('');
-    setAuthMessage('');
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: usernameInput, password: passwordInput })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setAuthError(data.error || 'Registration failed');
-      } else {
-        setAuthMessage('Account created! Please log in.');
-        setAuthTab('LOGIN');
-        setPasswordInput('');
-      }
-    } catch (err) {
-      setAuthError('Connection error');
+    const trimmed = usernameInput.trim();
+    if (trimmed.length < 3) {
+      setAuthError('Username must be at least 3 characters long');
+      return;
     }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+    setUser(trimmed);
+    localStorage.setItem('flappyUser', trimmed);
     setAuthError('');
-    setAuthMessage('');
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: usernameInput, password: passwordInput })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setAuthError(data.error || 'Login failed');
-      } else {
-        setUser(data.username);
-        localStorage.setItem('flappyUser', data.username);
-        setAuthTab(null);
-        setUsernameInput('');
-        setPasswordInput('');
-      }
-    } catch (err) {
-      setAuthError('Connection error');
-    }
+    setUsernameInput('');
   };
 
   const handleLogout = () => {
@@ -274,15 +235,6 @@ export default function App() {
     localStorage.removeItem('flappyHighScore_EASY');
     localStorage.removeItem('flappyHighScore_MEDIUM');
     localStorage.removeItem('flappyHighScore_HARD');
-  };
-
-  const handleGuestPlay = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!guestNameInput.trim()) return;
-    const name = `${guestNameInput.trim()} (Guest)`;
-    setUser(name);
-    localStorage.setItem('flappyUser', name);
-    setGuestNameInput('');
   };
 
   const submitScoreToBackend = async (finalScore: number, finalDiff: Difficulty) => {
@@ -317,7 +269,7 @@ export default function App() {
     
     // Spawn the first pipe closer to reduce starting gap
     const config = DIFFICULTY_CONFIG[difficulty];
-    const GROUND_HEIGHT = 40;
+    const GROUND_HEIGHT = 0;
     const minPipeHeight = 100;
     const maxPipeHeight = dimensions.height - config.pipeGap - 100 - GROUND_HEIGHT;
     const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
@@ -387,7 +339,7 @@ export default function App() {
       const config = DIFFICULTY_CONFIG[currentDifficulty];
       
       // Ground offset (visual ground height)
-      const GROUND_HEIGHT = 40;
+      const GROUND_HEIGHT = 0;
       
       // 1. Update Bird
       let newVelocity = currentState.birdVelocity + GRAVITY;
@@ -546,11 +498,11 @@ export default function App() {
             
             {/* Bottom Pipe */}
             <div
-              className="absolute bottom-10 bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 border-x-4 border-t-4 border-emerald-800 shadow-2xl"
+              className="absolute bottom-0 bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 border-x-4 border-t-4 border-emerald-800 shadow-2xl"
               style={{
                 left: pipe.x,
                 width: PIPE_WIDTH,
-                height: dimensions.height - pipe.topHeight - DIFFICULTY_CONFIG[difficulty].pipeGap - 40, // 40 is ground height
+                height: dimensions.height - pipe.topHeight - DIFFICULTY_CONFIG[difficulty].pipeGap,
                 borderTopLeftRadius: '8px',
                 borderTopRightRadius: '8px',
               }}
@@ -559,16 +511,6 @@ export default function App() {
             </div>
           </React.Fragment>
         ))}
-
-        {/* Ground */}
-        <div 
-          className="absolute bottom-0 w-full h-10 bg-[#ded895] border-t-8 border-[#73bf2e] z-10"
-          style={{ 
-            backgroundSize: '30px 30px', 
-            backgroundImage: 'linear-gradient(45deg, #d4ce8c 25%, transparent 25%, transparent 75%, #d4ce8c 75%, #d4ce8c), linear-gradient(45deg, #d4ce8c 25%, transparent 25%, transparent 75%, #d4ce8c 75%, #d4ce8c)', 
-            backgroundPosition: '0 0, 15px 15px' 
-          }}
-        ></div>
 
         {/* Bird */}
         <div
@@ -636,137 +578,38 @@ export default function App() {
               <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center transform transition-all border border-white/10 max-w-md w-full mx-4 text-white relative">
                 
                 {!user ? (
-                  /* Compulsory Authentication Screen */
+                  /* Username Input Screen */
                   <>
                     <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 mb-2 drop-shadow-sm pb-1 tracking-wider uppercase">
-                      Flappy Dev
+                      Flappy Bird
                     </h1>
                     <p className="text-slate-400 font-bold text-xs mb-6">
-                      Identify yourself to build the project
+                      Enter a username to start playing
                     </p>
 
-                    {/* Tabs to select method */}
-                    <div className="flex gap-1 mb-6 bg-white/5 p-1 rounded-xl">
-                      {(['LOGIN', 'REGISTER', 'GUEST'] as const).map((tab) => (
-                        <button
-                          key={tab}
-                          type="button"
-                          onClick={() => {
-                            setCompulsoryTab(tab);
-                            setAuthError('');
-                            setAuthMessage('');
-                          }}
-                          className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer ${
-                            compulsoryTab === tab
-                              ? 'bg-white/10 text-white shadow-sm'
-                              : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          {tab === 'LOGIN' ? 'Login' : tab === 'REGISTER' ? 'Register' : 'Guest'}
-                        </button>
-                      ))}
-                    </div>
-
                     {authError && <p className="text-xs text-rose-400 font-bold mb-4 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg text-left">{authError}</p>}
-                    {authMessage && <p className="text-xs text-emerald-400 font-bold mb-4 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg text-left">{authMessage}</p>}
 
-                    {compulsoryTab === 'LOGIN' && (
-                      <form onSubmit={handleLogin} className="flex flex-col text-left">
-                        <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Username</label>
-                        <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-4">
-                          <User size={16} className="text-slate-400 mr-2" />
-                          <input 
-                            type="text" 
-                            required
-                            value={usernameInput}
-                            onChange={(e) => setUsernameInput(e.target.value)}
-                            placeholder="username" 
-                            className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
-                          />
-                        </div>
+                    <form onSubmit={handleSetUsername} className="flex flex-col text-left">
+                      <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Username</label>
+                      <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-6">
+                        <User size={16} className="text-slate-400 mr-2" />
+                        <input 
+                          type="text" 
+                          required
+                          value={usernameInput}
+                          onChange={(e) => setUsernameInput(e.target.value)}
+                          placeholder="username" 
+                          className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
+                        />
+                      </div>
 
-                        <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Password</label>
-                        <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-6">
-                          <Lock size={16} className="text-slate-400 mr-2" />
-                          <input 
-                            type="password" 
-                            required
-                            value={passwordInput}
-                            onChange={(e) => setPasswordInput(e.target.value)}
-                            placeholder="••••••••" 
-                            className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
-                          />
-                        </div>
-
-                        <button 
-                          type="submit" 
-                          className="w-full py-3.5 rounded-xl font-black text-sm text-white bg-sky-500 hover:bg-sky-600 transition-all cursor-pointer font-bold"
-                        >
-                          Login
-                        </button>
-                      </form>
-                    )}
-
-                    {compulsoryTab === 'REGISTER' && (
-                      <form onSubmit={handleRegister} className="flex flex-col text-left">
-                        <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Username</label>
-                        <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-4">
-                          <User size={16} className="text-slate-400 mr-2" />
-                          <input 
-                            type="text" 
-                            required
-                            value={usernameInput}
-                            onChange={(e) => setUsernameInput(e.target.value)}
-                            placeholder="3+ characters" 
-                            className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
-                          />
-                        </div>
-
-                        <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Password</label>
-                        <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-6">
-                          <Lock size={16} className="text-slate-400 mr-2" />
-                          <input 
-                            type="password" 
-                            required
-                            value={passwordInput}
-                            onChange={(e) => setPasswordInput(e.target.value)}
-                            placeholder="4+ characters" 
-                            className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
-                          />
-                        </div>
-
-                        <button 
-                          type="submit" 
-                          className="w-full py-3.5 rounded-xl font-black text-sm text-white bg-emerald-500 hover:bg-emerald-600 transition-all cursor-pointer font-bold"
-                        >
-                          Create Account
-                        </button>
-                      </form>
-                    )}
-
-                    {compulsoryTab === 'GUEST' && (
-                      <form onSubmit={handleGuestPlay} className="flex flex-col text-left">
-                        <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Guest Display Name</label>
-                        <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-6">
-                          <User size={16} className="text-slate-400 mr-2" />
-                          <input 
-                            type="text" 
-                            required
-                            value={guestNameInput}
-                            onChange={(e) => setGuestNameInput(e.target.value)}
-                            placeholder="Enter guest name..." 
-                            className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
-                          />
-                        </div>
-
-                        <button 
-                          type="submit" 
-                          className="w-full py-3.5 rounded-xl font-black text-sm text-white bg-blue-500 hover:bg-blue-600 transition-all cursor-pointer font-bold"
-                        >
-                          Play as Guest
-                        </button>
-                      </form>
-                    )}
+                      <button 
+                        type="submit" 
+                        className="w-full py-3.5 rounded-xl font-black text-sm text-white bg-sky-500 hover:bg-sky-600 transition-all cursor-pointer font-bold"
+                      >
+                        Let's Play
+                      </button>
+                    </form>
                   </>
                 ) : (
                   /* Authenticated Screens (Leaderboard or Main Menu) */

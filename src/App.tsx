@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, RotateCcw, Trophy, User, LogOut, ListOrdered, X } from 'lucide-react';
+import { Play, Trophy, User, LogOut, ListOrdered, X, Volume2, VolumeX } from 'lucide-react';
 
 // Slower gameplay constants
 const GRAVITY = 0.35;
@@ -46,6 +46,7 @@ const PARTICLES = [
 ];
 
 const GAME_OVER_AUDIO = '/jumpscares/fahh.mp3';
+const BGM_AUDIO = '/jumpscares/bgm.mp3';
 
 const BackgroundParticles = React.memo(() => {
   return (
@@ -101,10 +102,12 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [leaderboard, setLeaderboard] = useState<{ username: string, score: number, timestamp: string }[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [bgmMuted, setBgmMuted] = useState(false);
 
   // Game Over and Audio Ref
   const isGameOverTriggeredRef = useRef(false);
   const gameOverAudioRef = useRef<HTMLAudioElement | null>(null);
+  const bgmAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const requestRef = useRef<number | undefined>(undefined);
 
@@ -134,6 +137,20 @@ export default function App() {
     audio.volume = 1.0;
     audio.load();
     gameOverAudioRef.current = audio;
+
+    // Preload and configure BGM loop
+    const bgm = new Audio(BGM_AUDIO);
+    bgm.preload = 'auto';
+    bgm.volume = 0.35;
+    bgm.loop = true;
+    bgm.load();
+    bgmAudioRef.current = bgm;
+
+    return () => {
+      if (bgmAudioRef.current) {
+        bgmAudioRef.current.pause();
+      }
+    };
   }, []);
 
   // Fetch and poll leaderboard when tab opens
@@ -194,6 +211,11 @@ export default function App() {
     localStorage.setItem('flappyUser', trimmed);
     setAuthError('');
     setUsernameInput('');
+
+    // Trigger BGM play on interaction
+    if (bgmAudioRef.current && !bgmMuted) {
+      bgmAudioRef.current.play().catch((err: any) => console.log("BGM play failed:", err));
+    }
   };
 
   const handleLogout = () => {
@@ -202,6 +224,21 @@ export default function App() {
     // Reset high score on logout
     setHighScore(0);
     localStorage.removeItem('flappyHighScore');
+    if (bgmAudioRef.current) {
+      bgmAudioRef.current.pause();
+    }
+  };
+
+  const toggleBgm = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newMuted = !bgmMuted;
+    setBgmMuted(newMuted);
+    if (bgmAudioRef.current) {
+      bgmAudioRef.current.muted = newMuted;
+      if (!newMuted) {
+        bgmAudioRef.current.play().catch((err: any) => console.log("BGM play failed:", err));
+      }
+    }
   };
 
   const submitScoreToBackend = async (finalScore: number) => {
@@ -261,6 +298,12 @@ export default function App() {
       dimensions,
       score: 0
     };
+
+    // Play/resume BGM on game start
+    if (bgmAudioRef.current && !bgmMuted) {
+      bgmAudioRef.current.currentTime = 0;
+      bgmAudioRef.current.play().catch((err: any) => console.log("BGM play failed:", err));
+    }
   };
 
   const gameOver = useCallback(() => {
@@ -279,12 +322,17 @@ export default function App() {
       submitScoreToBackend(score);
     }
 
+    // Pause BGM on game over
+    if (bgmAudioRef.current) {
+      bgmAudioRef.current.pause();
+    }
+
     // Play game over audio
     if (gameOverAudioRef.current) {
       gameOverAudioRef.current.currentTime = 0;
-      gameOverAudioRef.current.play().catch(e => console.error("Audio playback blocked", e));
+      gameOverAudioRef.current.play().catch((e: any) => console.error("Audio playback blocked", e));
     }
-  }, [score, user, highScore]);
+  }, [score, user, highScore, bgmMuted]);
 
   // Ref to hold mutable state for the animation frame
   const stateRef = useRef({ birdPos, birdVelocity, pipes, gameState, dimensions, score });
@@ -398,7 +446,7 @@ export default function App() {
       stateRef.current.pipes = nextPipes;
 
       if (scoreIncrement > 0) {
-        setScore((s) => s + scoreIncrement);
+        setScore((s: number) => s + scoreIncrement);
         stateRef.current.score = currentScore + scoreIncrement;
       }
 
@@ -525,31 +573,31 @@ export default function App() {
           
           {/* Top Bar: Score & High Score */}
           <div className="flex justify-between items-start">
-            <div className="bg-white/40 backdrop-blur-xl px-8 py-3 rounded-3xl text-white font-black text-5xl shadow-2xl border-2 border-white/50 text-shadow-lg">
+            <div className="bg-white border-4 border-slate-950 px-8 py-3 rounded-2xl text-slate-950 font-bold font-game text-2xl shadow-[4px_4px_0px_0px_rgba(2,6,23,1)]">
               {score}
             </div>
-            <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl px-6 py-3 rounded-2xl text-white font-bold shadow-2xl border-2 border-white/20">
-              <Trophy size={24} className="text-yellow-400 drop-shadow-lg" />
-              <span className="text-2xl">{highScore}</span>
+            <div className="flex items-center gap-3 bg-white border-4 border-slate-950 px-6 py-3 rounded-2xl text-slate-950 font-bold font-game text-sm shadow-[4px_4px_0px_0px_rgba(2,6,23,1)]">
+              <Trophy size={18} className="text-yellow-500 fill-yellow-500" />
+              <span>{highScore}</span>
             </div>
           </div>
 
           {/* Overlays */}
           {gameState !== 'PLAYING' && (
             <div 
-              className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/50 backdrop-blur-sm z-40 pointer-events-auto"
+              className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-xs z-40 pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <div className="bg-slate-900/90 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center transform transition-all border border-white/10 max-w-md w-full mx-4 text-white relative">
+              <div className="bg-[#1e293b] p-8 rounded-3xl border-4 border-slate-950 shadow-[10px_10px_0px_0px_rgba(2,6,23,1)] text-center transform transition-all max-w-md w-full mx-4 text-white relative">
                 
                 {!user ? (
                   /* Username Input Screen */
                   <>
-                    <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 mb-2 drop-shadow-sm pb-1 tracking-wider uppercase">
+                    <h1 className="text-2xl font-bold font-game text-yellow-400 mb-2 drop-shadow-[3px_3px_0px_rgba(2,6,23,1)] uppercase tracking-wider">
                       Flappy Bird
                     </h1>
-                    <p className="text-slate-400 font-bold text-xs mb-6">
+                    <p className="text-slate-300 font-bold text-xs mb-6 font-sans">
                       Enter a username to start playing
                     </p>
 
@@ -557,7 +605,7 @@ export default function App() {
 
                     <form onSubmit={handleSetUsername} className="flex flex-col text-left">
                       <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Username</label>
-                      <div className="flex items-center bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 mb-6">
+                      <div className="flex items-center bg-slate-900 border-2 border-slate-950 rounded-xl px-3 py-2.5 mb-6">
                         <User size={16} className="text-slate-400 mr-2" />
                         <input 
                           type="text" 
@@ -565,13 +613,13 @@ export default function App() {
                           value={usernameInput}
                           onChange={(e) => setUsernameInput(e.target.value)}
                           placeholder="username" 
-                          className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500" 
+                          className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500 font-sans" 
                         />
                       </div>
 
                       <button 
                         type="submit" 
-                        className="w-full py-3.5 rounded-xl font-black text-sm text-white bg-sky-500 hover:bg-sky-600 transition-all cursor-pointer font-bold"
+                        className="w-full py-3.5 rounded-xl font-bold font-game text-xs text-slate-950 bg-sky-400 border-2 border-slate-950 shadow-[4px_4px_0px_0px_rgba(2,6,23,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(2,6,23,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-[0px_0px_0px_0px_rgba(2,6,23,1)] transition-all cursor-pointer"
                       >
                         Let's Play
                       </button>
@@ -583,36 +631,36 @@ export default function App() {
                     {authTab === 'LEADERBOARD' ? (
                       <div className="flex flex-col text-left">
                         <div className="flex justify-between items-center mb-4">
-                          <h2 className="text-2xl font-black flex items-center gap-2">
-                            <ListOrdered size={22} className="text-amber-400" /> Leaderboard
+                          <h2 className="text-lg font-bold font-game flex items-center gap-2 text-yellow-400 drop-shadow-[2px_2px_0px_rgba(2,6,23,1)]">
+                            <ListOrdered size={18} className="text-amber-400" /> Leaderboard
                           </h2>
                           <button type="button" onClick={() => setAuthTab(null)} className="text-slate-400 hover:text-white cursor-pointer">
                             <X size={20} />
                           </button>
                         </div>
 
-                        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden max-h-[250px] overflow-y-auto">
+                        <div className="bg-slate-900 border-2 border-slate-950 rounded-2xl overflow-hidden max-h-[250px] overflow-y-auto shadow-[4px_4px_0px_0px_rgba(2,6,23,1)]">
                           {loadingLeaderboard ? (
-                            <p className="text-xs text-center py-8 text-slate-400">Loading scores...</p>
+                            <p className="text-xs text-center py-8 text-slate-400 font-game">Loading...</p>
                           ) : leaderboard.length === 0 ? (
-                            <p className="text-xs text-center py-8 text-slate-400">No high scores yet!</p>
+                            <p className="text-xs text-center py-8 text-slate-400 font-game">No high scores!</p>
                           ) : (
                             <table className="w-full text-left text-xs border-collapse">
                               <thead>
-                                <tr className="border-b border-white/10 bg-white/5 text-slate-400 font-black">
+                                <tr className="border-b border-slate-950/40 bg-slate-950 text-slate-400 font-bold font-game text-[9px] uppercase tracking-wider">
                                   <th className="p-3 text-center w-12">Rank</th>
                                   <th className="p-3">Player</th>
                                   <th className="p-3 text-right">Score</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {leaderboard.map((item, idx) => (
-                                  <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                {leaderboard.map((item: { username: string, score: number, timestamp: string }, idx: number) => (
+                                  <tr key={idx} className="border-b border-slate-950/20 hover:bg-white/5 transition-colors font-game text-[9px]">
                                     <td className="p-3 text-center font-bold">
                                       {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
                                     </td>
-                                    <td className="p-3 font-semibold text-white">{item.username}</td>
-                                    <td className="p-3 text-right font-black text-sky-400">{item.score}</td>
+                                    <td className="p-3 font-semibold text-white font-sans text-xs">{item.username}</td>
+                                    <td className="p-3 text-right font-bold text-sky-400">{item.score}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -623,50 +671,58 @@ export default function App() {
                     ) : (
                       /* Main Menu View */
                       <>
-                        {/* User profile header */}
-                        <div className="absolute top-4 right-4 flex items-center gap-2 text-xs">
-                          <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
+                        {/* User profile header & BGM Toggle centered cleanly */}
+                        <div className="flex justify-center items-center gap-3 mb-6 text-xs pointer-events-auto">
+                          <div className="flex items-center gap-2 bg-slate-900 border-2 border-slate-950 px-4 py-2 rounded-xl shadow-[2px_2px_0px_0px_rgba(2,6,23,1)]">
                             <span className="font-bold text-sky-400">👤 {user}</span>
                             <button 
                               onClick={handleLogout}
                               title="Log Out"
                               className="text-slate-400 hover:text-rose-400 cursor-pointer transition-colors"
                             >
-                              <LogOut size={12} />
+                              <LogOut size={14} />
                             </button>
                           </div>
+                          
+                          <button
+                            onClick={toggleBgm}
+                            className="p-2 bg-slate-900 border-2 border-slate-950 rounded-xl shadow-[2px_2px_0px_0px_rgba(2,6,23,1)] text-slate-300 hover:text-white cursor-pointer transition-colors"
+                            title={bgmMuted ? "Unmute BGM" : "Mute BGM"}
+                          >
+                            {bgmMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                          </button>
                         </div>
 
-                        <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 mb-2 drop-shadow-sm pb-1 tracking-wider uppercase">
+                        <h1 className="text-3xl font-bold font-game text-yellow-400 mb-2 drop-shadow-[4px_4px_0px_rgba(2,6,23,1)] uppercase tracking-wider">
                           Flappy Bird
                         </h1>
                         
-                        <p className="text-slate-400 font-bold text-sm mb-6">
+                        <p className="text-slate-300 font-bold text-xs mb-6 font-sans">
                           {gameState === 'GAME_OVER' ? '💻 You crashed!' : '🚀 Flap through the obstacles'}
                         </p>
 
                         {/* Score Dashboard */}
                         {gameState === 'START' ? (
-                          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 flex items-center justify-between">
+                          <div className="bg-slate-900 border-2 border-slate-950 rounded-2xl p-4 mb-6 flex items-center justify-between shadow-[4px_4px_0px_0px_rgba(2,6,23,1)]">
                             <div className="flex items-center gap-3">
                               <div className="p-3 bg-amber-500/20 text-amber-400 rounded-xl">
                                 <Trophy size={22} fill="currentColor" />
                               </div>
                               <div className="text-left">
-                                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Personal Best</p>
-                                <p className="text-2xl font-black text-white">{highScore}</p>
+                                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest font-sans">Personal Best</p>
+                                <p className="text-xl font-bold text-white font-game">{highScore}</p>
                               </div>
                             </div>
                           </div>
                         ) : (
                           <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
-                              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Score</p>
-                              <p className="text-3xl font-black text-sky-400">{score}</p>
+                            <div className="bg-slate-900 border-2 border-slate-950 rounded-2xl p-4 flex flex-col items-center shadow-[4px_4px_0px_0px_rgba(2,6,23,1)]">
+                              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1 font-sans">Score</p>
+                              <p className="text-xl font-bold text-sky-400 font-game">{score}</p>
                             </div>
-                            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
-                              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Best</p>
-                              <p className="text-3xl font-black text-amber-400">{highScore}</p>
+                            <div className="bg-slate-900 border-2 border-slate-950 rounded-2xl p-4 flex flex-col items-center shadow-[4px_4px_0px_0px_rgba(2,6,23,1)]">
+                              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1 font-sans">Best</p>
+                              <p className="text-xl font-bold text-amber-400 font-game">{highScore}</p>
                             </div>
                           </div>
                         )}
@@ -675,31 +731,22 @@ export default function App() {
                         <div className="flex flex-col gap-3 pointer-events-auto">
                           <button 
                             onClick={(e) => { e.stopPropagation(); startGame(); }}
-                            className="w-full py-4 rounded-xl font-black text-md text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 active:scale-95 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                            className="w-full py-3.5 rounded-xl font-bold font-game text-xs text-slate-950 bg-yellow-400 border-2 border-slate-950 shadow-[4px_4px_0px_0px_rgba(2,6,23,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(2,6,23,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-[0px_0px_0px_0px_rgba(2,6,23,1)] transition-all cursor-pointer flex items-center justify-center gap-2"
                           >
-                            {gameState === 'START' ? (
-                              <>
-                                <Play size={18} fill="currentColor" />
-                                Start Game
-                              </>
-                            ) : (
-                              <>
-                                <RotateCcw size={18} />
-                                Restart Game
-                              </>
-                            )}
+                            <Play size={14} fill="currentColor" />
+                            {gameState === 'START' ? 'Start Game' : 'Restart Game'}
                           </button>
 
                           <button 
                             onClick={() => setAuthTab('LEADERBOARD')}
-                            className="w-full py-3 rounded-xl font-black text-xs text-slate-300 bg-white/5 hover:bg-white/10 border border-white/5 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2"
+                            className="w-full py-3.5 rounded-xl font-bold font-game text-xs text-white bg-slate-800 border-2 border-slate-950 shadow-[4px_4px_0px_0px_rgba(2,6,23,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(2,6,23,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-[0px_0px_0px_0px_rgba(2,6,23,1)] transition-all cursor-pointer flex items-center justify-center gap-2"
                           >
                             <ListOrdered size={14} className="text-amber-400" />
                             View Leaderboard
                           </button>
                         </div>
 
-                        <p className="text-[10px] text-slate-500 font-bold mt-4">
+                        <p className="text-[10px] text-slate-500 font-bold mt-4 font-sans">
                           {gameState === 'START' ? 'Press Space or click screen to jump once started' : 'Press Restart to play again'}
                         </p>
                       </>

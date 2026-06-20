@@ -148,7 +148,7 @@ app.get('/api/scores/personal-best', (req, res) => {
 });
 
 // Fallback to index.html for React SPA
-app.get('*', (req, res, next) => {
+app.get(/.*/, (req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return next();
   }

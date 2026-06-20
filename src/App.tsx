@@ -4,8 +4,8 @@ import { Play, RotateCcw, Trophy, User, LogOut, ListOrdered, X } from 'lucide-re
 // Slower gameplay constants
 const GRAVITY = 0.35;
 const JUMP_STRENGTH = -7;
-const PIPE_WIDTH = 90;
-const BIRD_SIZE = 50; // Increased size to fit the logo image nicely
+const PIPE_WIDTH = 110;
+const BIRD_SIZE = 65; // Increased size to fit the logo image nicely
 const BIRD_X = 120; // Bird's fixed horizontal position
 
 type GameState = 'START' | 'PLAYING' | 'GAME_OVER';
@@ -19,7 +19,8 @@ interface PipeData {
 
 // Difficulty curves: starts between MEDIUM and HARD, gets harder over time
 const getPipeGap = (currentScore: number) => {
-  return Math.max(140, 205 - currentScore * 1.5);
+  // Starts at 230 (wider to fit size 65 bird) and decreases to a minimum cap of 170
+  return Math.max(170, 230 - currentScore * 1.5);
 };
 
 const getPipeSpeed = (currentScore: number) => {
@@ -419,7 +420,7 @@ export default function App() {
   // Keyboard support
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
         e.preventDefault();
         jump();
       }

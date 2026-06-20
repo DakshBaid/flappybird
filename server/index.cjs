@@ -6,7 +6,9 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_FILE = path.join(__dirname, 'db.json');
+const isVercel = process.env.VERCEL === '1';
+const DB_FILE = isVercel ? path.join('/tmp', 'db.json') : path.join(__dirname, 'db.json');
+const BUNDLED_DB = path.join(__dirname, 'db.json');
 
 app.use(cors());
 app.use(express.json());
@@ -46,7 +48,17 @@ async function readDB() {
   }
 
   if (!fs.existsSync(DB_FILE)) {
-    const initialData = { users: [], scores: [] };
+    let initialData = { users: [], scores: [] };
+    
+    // If we're on Vercel and /tmp/db.json doesn't exist, try to load the bundled local db.json
+    if (isVercel && fs.existsSync(BUNDLED_DB)) {
+      try {
+        initialData = JSON.parse(fs.readFileSync(BUNDLED_DB, 'utf8'));
+      } catch (e) {
+        console.error('Error reading bundled db.json:', e.message);
+      }
+    }
+
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
     } catch (e) {
@@ -54,12 +66,18 @@ async function readDB() {
     }
     return initialData;
   }
+  
   try {
     const data = fs.readFileSync(DB_FILE, 'utf8');
     return JSON.parse(data);
   } catch (err) {
     console.error('Error reading local database file, resetting...', err);
-    const initialData = { users: [], scores: [] };
+    let initialData = { users: [], scores: [] };
+    if (isVercel && fs.existsSync(BUNDLED_DB)) {
+      try {
+        initialData = JSON.parse(fs.readFileSync(BUNDLED_DB, 'utf8'));
+      } catch (e) {}
+    }
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
     } catch (e) {}

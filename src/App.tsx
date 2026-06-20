@@ -9,36 +9,21 @@ const BIRD_SIZE = 50; // Increased size to fit the logo image nicely
 const BIRD_X = 120; // Bird's fixed horizontal position
 
 type GameState = 'START' | 'PLAYING' | 'GAME_OVER';
-type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
 interface PipeData {
   x: number;
   topHeight: number;
+  pipeGap: number;
   passed: boolean;
 }
 
-interface DifficultySettings {
-  pipeGap: number;
-  spawnDistance: number;
-  pipeSpeed: number;
-}
+// Difficulty curves: starts between MEDIUM and HARD, gets harder over time
+const getPipeGap = (currentScore: number) => {
+  return Math.max(140, 205 - currentScore * 1.5);
+};
 
-const DIFFICULTY_CONFIG: Record<Difficulty, DifficultySettings> = {
-  EASY: {
-    pipeGap: 280, // Very wide vertical gap
-    spawnDistance: 300, // Frequent pipes
-    pipeSpeed: 1.8, // Slow motion speed
-  },
-  MEDIUM: {
-    pipeGap: 210, // Standard gap
-    spawnDistance: 390, // Standard spacing
-    pipeSpeed: 2.9, // Standard speed
-  },
-  HARD: {
-    pipeGap: 145, // Extremely narrow gap
-    spawnDistance: 480, // More spacing to allow reaction at high speed
-    pipeSpeed: 4.2, // Extremely fast speed
-  },
+const getPipeSpeed = (currentScore: number) => {
+  return Math.min(5.2, 3.0 + currentScore * 0.05);
 };
 
 const PARTICLES = [
@@ -97,7 +82,6 @@ const BackgroundClouds = React.memo(() => {
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('START');
-  const [difficulty, setDifficulty] = useState<Difficulty>('MEDIUM');
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight
@@ -106,13 +90,8 @@ export default function App() {
   const [birdVelocity, setBirdVelocity] = useState(0);
   const [pipes, setPipes] = useState<PipeData[]>([]);
   const [score, setScore] = useState(0);
-  
-  // Difficulty-specific high scores
-  const [highScores, setHighScores] = useState<Record<Difficulty, number>>({
-    EASY: 0,
-    MEDIUM: 0,
-    HARD: 0
-  });
+  // Personal high score
+  const [highScore, setHighScore] = useState<number>(0);
 
   // Auth States
   const [user, setUser] = useState<string | null>(localStorage.getItem('flappyUser') || null);
@@ -144,15 +123,9 @@ export default function App() {
   }, [gameState]);
 
   useEffect(() => {
-    // Load high scores from localStorage
-    const easy = localStorage.getItem('flappyHighScore_EASY') || '0';
-    const medium = localStorage.getItem('flappyHighScore_MEDIUM') || '0';
-    const hard = localStorage.getItem('flappyHighScore_HARD') || '0';
-    setHighScores({
-      EASY: parseInt(easy, 10),
-      MEDIUM: parseInt(medium, 10),
-      HARD: parseInt(hard, 10)
-    });
+    // Load high score from localStorage
+    const saved = localStorage.getItem('flappyHighScore') || '0';
+    setHighScore(parseInt(saved, 10));
 
     // Preload game over audio to memory cache
     const audio = new Audio(GAME_OVER_AUDIO);
@@ -165,13 +138,13 @@ export default function App() {
   // Fetch and poll leaderboard when tab opens
   useEffect(() => {
     if (authTab === 'LEADERBOARD') {
-      fetchLeaderboard(difficulty);
+      fetchLeaderboard();
       const interval = setInterval(() => {
-        fetchLeaderboard(difficulty);
+        fetchLeaderboard();
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [authTab, difficulty]);
+  }, [authTab]);
 
   // Sync personal bests when user changes (on login/register/guest start/reload)
   useEffect(() => {
@@ -185,24 +158,19 @@ export default function App() {
       const res = await fetch(`/api/scores/personal-best?username=${encodeURIComponent(username)}`);
       if (res.ok) {
         const data = await res.json();
-        setHighScores({
-          EASY: data.EASY || 0,
-          MEDIUM: data.MEDIUM || 0,
-          HARD: data.HARD || 0
-        });
-        localStorage.setItem('flappyHighScore_EASY', (data.EASY || 0).toString());
-        localStorage.setItem('flappyHighScore_MEDIUM', (data.MEDIUM || 0).toString());
-        localStorage.setItem('flappyHighScore_HARD', (data.HARD || 0).toString());
+        const pb = data.personalBest || 0;
+        setHighScore(pb);
+        localStorage.setItem('flappyHighScore', pb.toString());
       }
     } catch (err) {
       console.error('Error fetching personal bests:', err);
     }
   };
 
-  const fetchLeaderboard = async (diff: Difficulty) => {
+  const fetchLeaderboard = async () => {
     setLoadingLeaderboard(true);
     try {
-      const res = await fetch(`/api/scores/leaderboard?difficulty=${diff}`);
+      const res = await fetch('/api/scores/leaderboard');
       if (res.ok) {
         const data = await res.json();
         setLeaderboard(data);
@@ -230,20 +198,18 @@ export default function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('flappyUser');
-    // Reset high scores on logout
-    setHighScores({ EASY: 0, MEDIUM: 0, HARD: 0 });
-    localStorage.removeItem('flappyHighScore_EASY');
-    localStorage.removeItem('flappyHighScore_MEDIUM');
-    localStorage.removeItem('flappyHighScore_HARD');
+    // Reset high score on logout
+    setHighScore(0);
+    localStorage.removeItem('flappyHighScore');
   };
 
-  const submitScoreToBackend = async (finalScore: number, finalDiff: Difficulty) => {
+  const submitScoreToBackend = async (finalScore: number) => {
     if (!user) return;
     try {
       const res = await fetch('/api/scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user, score: finalScore, difficulty: finalDiff })
+        body: JSON.stringify({ username: user, score: finalScore })
       });
       if (res.ok) {
         fetchPersonalBests(user);
@@ -268,10 +234,9 @@ export default function App() {
     setBirdVelocity(JUMP_STRENGTH);
     
     // Spawn the first pipe closer to reduce starting gap
-    const config = DIFFICULTY_CONFIG[difficulty];
-    const GROUND_HEIGHT = 0;
+    const initialPipeGap = getPipeGap(0);
     const minPipeHeight = 100;
-    const maxPipeHeight = dimensions.height - config.pipeGap - 100 - GROUND_HEIGHT;
+    const maxPipeHeight = dimensions.height - initialPipeGap - 100;
     const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
     const initialPipeX = Math.max(BIRD_X + 250, Math.min(dimensions.width * 0.75, 650));
     
@@ -279,6 +244,7 @@ export default function App() {
       {
         x: initialPipeX,
         topHeight,
+        pipeGap: initialPipeGap,
         passed: false,
       }
     ];
@@ -292,7 +258,7 @@ export default function App() {
       pipes: initialPipes,
       gameState: 'PLAYING',
       dimensions,
-      difficulty
+      score: 0
     };
   };
 
@@ -301,19 +267,15 @@ export default function App() {
     isGameOverTriggeredRef.current = true;
     setGameState('GAME_OVER');
     
-    // Save difficulty-specific local high scores
-    const currentHighScore = highScores[difficulty];
-    if (score > currentHighScore) {
-      setHighScores(prev => {
-        const updated = { ...prev, [difficulty]: score };
-        localStorage.setItem(`flappyHighScore_${difficulty}`, score.toString());
-        return updated;
-      });
+    // Save local high score
+    if (score > highScore) {
+      setHighScore(score);
+      localStorage.setItem('flappyHighScore', score.toString());
     }
 
     // Submit score to backend
     if (user) {
-      submitScoreToBackend(score, difficulty);
+      submitScoreToBackend(score);
     }
 
     // Play game over audio
@@ -321,13 +283,13 @@ export default function App() {
       gameOverAudioRef.current.currentTime = 0;
       gameOverAudioRef.current.play().catch(e => console.error("Audio playback blocked", e));
     }
-  }, [score, difficulty, user, highScores]);
+  }, [score, user, highScore]);
 
   // Ref to hold mutable state for the animation frame
-  const stateRef = useRef({ birdPos, birdVelocity, pipes, gameState, dimensions, difficulty });
+  const stateRef = useRef({ birdPos, birdVelocity, pipes, gameState, dimensions, score });
   useEffect(() => {
-    stateRef.current = { birdPos, birdVelocity, pipes, gameState, dimensions, difficulty };
-  }, [birdPos, birdVelocity, pipes, gameState, dimensions, difficulty]);
+    stateRef.current = { birdPos, birdVelocity, pipes, gameState, dimensions, score };
+  }, [birdPos, birdVelocity, pipes, gameState, dimensions, score]);
 
   useEffect(() => {
     if (gameState !== 'PLAYING') return;
@@ -335,8 +297,8 @@ export default function App() {
     const gameLoop = () => {
       const currentState = stateRef.current;
       const { width, height } = currentState.dimensions;
-      const currentDifficulty = currentState.difficulty;
-      const config = DIFFICULTY_CONFIG[currentDifficulty];
+      const currentScore = currentState.score;
+      const currentPipeSpeed = getPipeSpeed(currentScore);
       
       // Ground offset (visual ground height)
       const GROUND_HEIGHT = 0;
@@ -359,8 +321,8 @@ export default function App() {
 
       // 2. Update Pipes, collision check, and scoring
       let scoreIncrement = 0;
-      let nextPipes = currentState.pipes.map((pipe) => {
-        const nextX = pipe.x - config.pipeSpeed;
+      let nextPipes = currentState.pipes.map((pipe: PipeData) => {
+        const nextX = pipe.x - currentPipeSpeed;
         let passed = pipe.passed;
         
         // Tighter hitboxes
@@ -381,7 +343,7 @@ export default function App() {
         const bottomPipeRect = {
           left: nextX,
           right: nextX + PIPE_WIDTH,
-          top: pipe.topHeight + config.pipeGap,
+          top: pipe.topHeight + pipe.pipeGap,
           bottom: height,
         };
 
@@ -407,18 +369,20 @@ export default function App() {
       });
 
       // Filter off-screen pipes
-      nextPipes = nextPipes.filter((pipe) => pipe.x > -PIPE_WIDTH * 2);
+      nextPipes = nextPipes.filter((pipe: PipeData) => pipe.x > -PIPE_WIDTH * 2);
 
       // Spawn new pipe if needed
-      const spawnDistance = config.spawnDistance; 
-      if (nextPipes.length === 0 || nextPipes[nextPipes.length - 1].x < width - spawnDistance) {
+      const SPAWN_DISTANCE = 400; 
+      if (nextPipes.length === 0 || nextPipes[nextPipes.length - 1].x < width - SPAWN_DISTANCE) {
+        const nextPipeGap = getPipeGap(currentScore + scoreIncrement);
         const minPipeHeight = 100;
-        const maxPipeHeight = height - config.pipeGap - 100 - GROUND_HEIGHT;
+        const maxPipeHeight = height - nextPipeGap - 100 - GROUND_HEIGHT;
         const topHeight = Math.floor(Math.random() * (maxPipeHeight - minPipeHeight + 1) + minPipeHeight);
         
         nextPipes.push({
           x: width,
           topHeight,
+          pipeGap: nextPipeGap,
           passed: false,
         });
       }
@@ -434,6 +398,7 @@ export default function App() {
 
       if (scoreIncrement > 0) {
         setScore((s) => s + scoreIncrement);
+        stateRef.current.score = currentScore + scoreIncrement;
       }
 
       if (crashed) {
@@ -480,7 +445,7 @@ export default function App() {
         <BackgroundClouds />
 
         {/* Pipes */}
-        {pipes.map((pipe, i) => (
+        {pipes.map((pipe: PipeData, i: number) => (
           <React.Fragment key={i}>
             {/* Top Pipe */}
             <div
@@ -502,7 +467,7 @@ export default function App() {
               style={{
                 left: pipe.x,
                 width: PIPE_WIDTH,
-                height: dimensions.height - pipe.topHeight - DIFFICULTY_CONFIG[difficulty].pipeGap,
+                height: dimensions.height - pipe.topHeight - pipe.pipeGap,
                 borderTopLeftRadius: '8px',
                 borderTopRightRadius: '8px',
               }}
@@ -564,7 +529,7 @@ export default function App() {
             </div>
             <div className="flex items-center gap-3 bg-black/40 backdrop-blur-xl px-6 py-3 rounded-2xl text-white font-bold shadow-2xl border-2 border-white/20">
               <Trophy size={24} className="text-yellow-400 drop-shadow-lg" />
-              <span className="text-2xl">{highScores[difficulty]}</span>
+              <span className="text-2xl">{highScore}</span>
             </div>
           </div>
 
@@ -625,28 +590,11 @@ export default function App() {
                           </button>
                         </div>
 
-                        {/* Difficulty Tab Selector for Leaderboard */}
-                        <div className="flex gap-1 mb-4 bg-white/5 p-1 rounded-xl">
-                          {(['EASY', 'MEDIUM', 'HARD'] as const).map((diff) => (
-                            <button
-                              key={diff}
-                              onClick={() => setDifficulty(diff)}
-                              className={`flex-1 py-1.5 text-[10px] font-black rounded-lg transition-all cursor-pointer ${
-                                difficulty === diff
-                                  ? 'bg-white/10 text-white shadow-sm'
-                                  : 'text-slate-400 hover:text-white'
-                              }`}
-                            >
-                              {diff}
-                            </button>
-                          ))}
-                        </div>
-
                         <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden max-h-[250px] overflow-y-auto">
                           {loadingLeaderboard ? (
                             <p className="text-xs text-center py-8 text-slate-400">Loading scores...</p>
                           ) : leaderboard.length === 0 ? (
-                            <p className="text-xs text-center py-8 text-slate-400">No high scores yet on {difficulty}!</p>
+                            <p className="text-xs text-center py-8 text-slate-400">No high scores yet!</p>
                           ) : (
                             <table className="w-full text-left text-xs border-collapse">
                               <thead>
@@ -689,11 +637,11 @@ export default function App() {
                         </div>
 
                         <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 mb-2 drop-shadow-sm pb-1 tracking-wider uppercase">
-                          Flappy Dev
+                          Flappy Bird
                         </h1>
                         
                         <p className="text-slate-400 font-bold text-sm mb-6">
-                          {gameState === 'GAME_OVER' ? '💻 You crashed the code!' : '🚀 Refactor and fly through the obstacles'}
+                          {gameState === 'GAME_OVER' ? '💻 You crashed!' : '🚀 Flap through the obstacles'}
                         </p>
 
                         {/* Score Dashboard */}
@@ -704,8 +652,8 @@ export default function App() {
                                 <Trophy size={22} fill="currentColor" />
                               </div>
                               <div className="text-left">
-                                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Personal Best ({difficulty})</p>
-                                <p className="text-2xl font-black text-white">{highScores[difficulty]}</p>
+                                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Personal Best</p>
+                                <p className="text-2xl font-black text-white">{highScore}</p>
                               </div>
                             </div>
                           </div>
@@ -716,41 +664,11 @@ export default function App() {
                               <p className="text-3xl font-black text-sky-400">{score}</p>
                             </div>
                             <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col items-center">
-                              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Best ({difficulty})</p>
-                              <p className="text-3xl font-black text-amber-400">{highScores[difficulty]}</p>
+                              <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Best</p>
+                              <p className="text-3xl font-black text-amber-400">{highScore}</p>
                             </div>
                           </div>
                         )}
-
-                        {/* Difficulty Selector */}
-                        <div className="mb-6 pointer-events-auto">
-                          <p className="text-xs text-slate-400 uppercase font-black tracking-widest mb-3 text-left pl-1">Select Difficulty</p>
-                          <div className="flex gap-2 justify-center">
-                            {(['EASY', 'MEDIUM', 'HARD'] as const).map((diff) => {
-                              const isActive = difficulty === diff;
-                              let btnClass = "flex-1 py-3 rounded-xl font-black text-xs transition-all duration-300 border cursor-pointer ";
-                              if (isActive) {
-                                if (diff === 'EASY') btnClass += "bg-emerald-500 text-white border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-[1.03]";
-                                else if (diff === 'MEDIUM') btnClass += "bg-amber-500 text-white border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-[1.03]";
-                                else btnClass += "bg-rose-500 text-white border-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.4)] scale-[1.03]";
-                              } else {
-                                btnClass += "bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white";
-                              }
-                              return (
-                                <button
-                                  key={diff}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDifficulty(diff);
-                                  }}
-                                  className={btnClass}
-                                >
-                                  {diff}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
 
                         {/* Menu Actions */}
                         <div className="flex flex-col gap-3 pointer-events-auto">
@@ -761,12 +679,12 @@ export default function App() {
                             {gameState === 'START' ? (
                               <>
                                 <Play size={18} fill="currentColor" />
-                                Confirm & Start
+                                Start Game
                               </>
                             ) : (
                               <>
                                 <RotateCcw size={18} />
-                                Confirm & Restart
+                                Restart Game
                               </>
                             )}
                           </button>
@@ -781,7 +699,7 @@ export default function App() {
                         </div>
 
                         <p className="text-[10px] text-slate-500 font-bold mt-4">
-                          {gameState === 'START' ? 'Press Space or click screen to jump once started' : 'Select difficulty and press Restart to play again'}
+                          {gameState === 'START' ? 'Press Space or click screen to jump once started' : 'Press Restart to play again'}
                         </p>
                       </>
                     )}

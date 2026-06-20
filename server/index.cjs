@@ -80,21 +80,22 @@ app.post('/api/auth/login', (req, res) => {
   res.status(200).json({ message: 'Login successful', username: user.username });
 });
 
+// Serve static files from the React frontend build
+app.use(express.static(path.join(__dirname, '../dist')));
+
 // 3. Scores Endpoint: Post Score
 app.post('/api/scores', (req, res) => {
-  const { username, score, difficulty } = req.body;
-  if (!username || score === undefined || !difficulty) {
-    return res.status(400).json({ error: 'Missing username, score, or difficulty' });
+  const { username, score } = req.body;
+  if (!username || score === undefined) {
+    return res.status(400).json({ error: 'Missing username or score' });
   }
 
   const db = readDB();
-  // If user exists in DB, use their canonical username casing; otherwise fallback to guest username
   const userExists = db.users.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
 
   const newScore = {
     username: userExists ? userExists.username : username.trim(),
     score: parseInt(score, 10),
-    difficulty,
     timestamp: new Date().toISOString()
   };
 
@@ -106,18 +107,11 @@ app.post('/api/scores', (req, res) => {
 
 // 4. Leaderboard Endpoint: Get Top Scores (Case-insensitive user aggregation)
 app.get('/api/scores/leaderboard', (req, res) => {
-  const { difficulty } = req.query;
-  if (!difficulty) {
-    return res.status(400).json({ error: 'Difficulty parameter is required' });
-  }
-
   const db = readDB();
-  // Filter by difficulty
-  const filtered = db.scores.filter(s => s.difficulty.toUpperCase() === difficulty.toUpperCase());
-
+  
   // Aggregate high score per user case-insensitively
   const userMaxScores = {};
-  filtered.forEach(s => {
+  db.scores.forEach(s => {
     const key = s.username.toLowerCase();
     if (!userMaxScores[key] || s.score > userMaxScores[key].score) {
       userMaxScores[key] = s;
@@ -132,7 +126,7 @@ app.get('/api/scores/leaderboard', (req, res) => {
   res.status(200).json(leaderboard);
 });
 
-// 5. Personal Best Endpoint: Get user's high score per difficulty
+// 5. Personal Best Endpoint: Get user's high score
 app.get('/api/scores/personal-best', (req, res) => {
   const { username } = req.query;
   if (!username) {
@@ -140,20 +134,25 @@ app.get('/api/scores/personal-best', (req, res) => {
   }
 
   const db = readDB();
-  const personalBest = { EASY: 0, MEDIUM: 0, HARD: 0 };
+  let personalBest = 0;
 
   db.scores.forEach(s => {
     if (s.username.toLowerCase() === username.trim().toLowerCase()) {
-      const diff = s.difficulty.toUpperCase();
-      if (diff === 'EASY' || diff === 'MEDIUM' || diff === 'HARD') {
-        if (s.score > personalBest[diff]) {
-          personalBest[diff] = s.score;
-        }
+      if (s.score > personalBest) {
+        personalBest = s.score;
       }
     }
   });
 
-  res.status(200).json(personalBest);
+  res.status(200).json({ personalBest });
+});
+
+// Fallback to index.html for React SPA
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
 // Start server

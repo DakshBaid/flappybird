@@ -1,4 +1,35 @@
 {
   "users": [],
-  "scores": []
+  "scores": [
+    {
+      "username": "TesterTester (Guest)",
+      "score": 0,
+      "difficulty": "MEDIUM",
+      "timestamp": "2026-06-19T19:44:50.646Z"
+    },
+    {
+      "username": "TesterTester (Guest)",
+      "score": 0,
+      "difficulty": "MEDIUM",
+      "timestamp": "2026-06-19T19:45:51.264Z"
+    },
+    {
+      "username": "TesterTester (Guest)",
+      "score": 0,
+      "difficulty": "MEDIUM",
+      "timestamp": "2026-06-19T19:46:14.062Z"
+    },
+    {
+      "username": "TesterTester (Guest)",
+      "score": 0,
+      "difficulty": "MEDIUM",
+      "timestamp": "2026-06-19T19:48:25.815Z"
+    },
+    {
+      "username": "TesterTester (Guest)",
+      "score": 0,
+      "difficulty": "MEDIUM",
+      "timestamp": "2026-06-19T19:49:16.369Z"
+    }
+  ]
 }

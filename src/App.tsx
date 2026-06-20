@@ -59,25 +59,7 @@ const PARTICLES = [
   { symbol: 'Vite', left: '90%', delay: '16s', size: '18px', duration: '29s' },
 ];
 
-const JUMPSCARE_IMAGES = [
-  '/jumpscares/whatsapp_image_1.jpeg',
-  '/jumpscares/whatsapp_image_2.jpeg',
-  '/jumpscares/whatsapp_image_3.jpeg',
-  '/jumpscares/screenshot_1.png',
-  '/jumpscares/screenshot_2.png',
-  '/jumpscares/screenshot_3.png',
-  '/jumpscares/screenshot_4.png',
-  '/jumpscares/screenshot_5.png'
-];
-
-const JUMPSCARE_AUDIOS = [
-  '/jumpscares/fahh.mp3',
-  '/jumpscares/ganekajuice.mp3',
-  '/jumpscares/gian_hain_aap.mp3',
-  '/jumpscares/goofy_uhhh.mp3',
-  '/jumpscares/amitabh_aag.mp3',
-  '/jumpscares/modi_ji.mp3'
-];
+const GAME_OVER_AUDIO = '/jumpscares/fahh.mp3';
 
 const BackgroundParticles = React.memo(() => {
   return (
@@ -144,14 +126,9 @@ export default function App() {
   const [compulsoryTab, setCompulsoryTab] = useState<'LOGIN' | 'REGISTER' | 'GUEST'>('LOGIN');
   const [guestNameInput, setGuestNameInput] = useState('');
 
-  // Jumpscare States
-  const [jumpscareActive, setJumpscareActive] = useState(false);
-  const [jumpscareImg, setJumpscareImg] = useState('');
+  // Game Over and Audio Ref
   const isGameOverTriggeredRef = useRef(false);
-  const remainingImagesRef = useRef<string[]>([]);
-  const preloadedAudiosRef = useRef<Record<string, HTMLAudioElement>>({});
-  const remainingAudiosRef = useRef<string[]>([]);
-  const preloadedImagesRef = useRef<HTMLImageElement[]>([]);
+  const gameOverAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const requestRef = useRef<number | undefined>(undefined);
 
@@ -181,26 +158,12 @@ export default function App() {
       HARD: parseInt(hard, 10)
     });
 
-    // Preload jumpscare audios to memory cache
-    JUMPSCARE_AUDIOS.forEach((src) => {
-      const audio = new Audio(src);
-      audio.preload = 'auto';
-      audio.volume = 1.0;
-      audio.load();
-      preloadedAudiosRef.current[src] = audio;
-    });
-
-    // Preload jumpscare images to memory cache for zero-delay loading and force GPU decode
-    const preloadedImages: HTMLImageElement[] = [];
-    JUMPSCARE_IMAGES.forEach((src) => {
-      const img = new Image();
-      img.src = src;
-      img.decode()
-        .then(() => console.log(`Decoded successfully: ${src}`))
-        .catch((err) => console.warn(`Decoding skipped for image ${src}:`, err));
-      preloadedImages.push(img);
-    });
-    preloadedImagesRef.current = preloadedImages;
+    // Preload game over audio to memory cache
+    const audio = new Audio(GAME_OVER_AUDIO);
+    audio.preload = 'auto';
+    audio.volume = 1.0;
+    audio.load();
+    gameOverAudioRef.current = audio;
   }, []);
 
   // Fetch and poll leaderboard when tab opens
@@ -401,28 +364,11 @@ export default function App() {
       submitScoreToBackend(score, difficulty);
     }
 
-    // Jumpscare trigger logic: TRIGGER EVERY TIME
-    // Shuffle images if remaining queue is empty, ensuring fully randomized non-repeating cycle
-    if (remainingImagesRef.current.length === 0) {
-      remainingImagesRef.current = [...JUMPSCARE_IMAGES].sort(() => Math.random() - 0.5);
+    // Play game over audio
+    if (gameOverAudioRef.current) {
+      gameOverAudioRef.current.currentTime = 0;
+      gameOverAudioRef.current.play().catch(e => console.error("Audio playback blocked", e));
     }
-    const nextImg = remainingImagesRef.current.pop() || JUMPSCARE_IMAGES[0];
-    setJumpscareImg(nextImg);
-    
-    // Audio selection: Shuffle audios if remaining queue is empty, ensuring fully randomized non-repeating cycle
-    if (remainingAudiosRef.current.length === 0) {
-      remainingAudiosRef.current = [...JUMPSCARE_AUDIOS].sort(() => Math.random() - 0.5);
-    }
-    const nextAudioSrc = remainingAudiosRef.current.pop() || JUMPSCARE_AUDIOS[0];
-    const audio = preloadedAudiosRef.current[nextAudioSrc] || new Audio(nextAudioSrc);
-    
-    audio.currentTime = 0;
-    audio.play().catch(e => console.error("Audio playback blocked", e));
-    
-    setJumpscareActive(true);
-    setTimeout(() => {
-      setJumpscareActive(false);
-    }, 1500);
   }, [score, difficulty, user, highScores]);
 
   // Ref to hold mutable state for the animation frame
@@ -1002,29 +948,7 @@ export default function App() {
             </div>
           )}
 
-        {/* Jumpscare Overlay (Always mounted to ensure pre-rendered images stay cached and decoded) */}
-        <div 
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center pointer-events-none transition-opacity duration-[50ms]"
-          style={{ 
-            opacity: jumpscareActive ? 1 : 0,
-            visibility: jumpscareActive ? 'visible' : 'hidden'
-          }}
-        >
-          <div className={`w-[90vw] h-[90vh] max-w-5xl max-h-[85vh] flex items-center justify-center ${
-            jumpscareActive ? 'animate-jumpscare-shake' : ''
-          }`}>
-            {JUMPSCARE_IMAGES.map((src) => (
-              <img 
-                key={src}
-                src={src} 
-                alt="👻 JUMPSCARE 👻" 
-                className={`w-full h-full object-contain filter drop-shadow-[0_0_30px_rgba(244,63,94,0.6)] ${
-                  jumpscareImg === src ? 'block' : 'hidden'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
+
 
         </div>
       </div>

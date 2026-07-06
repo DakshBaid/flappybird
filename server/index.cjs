@@ -31,22 +31,31 @@ async function fetchWithTimeout(resource, options = {}) {
   }
 }
 
-const KVDB_URL = 'https://kvdb.io/flappy_bird_daksh_scores_v2/data';
+const KV_REST_API_URL = process.env.KV_REST_API_URL;
+const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN;
 
 // Helper function to read DB
 async function readDB() {
-  try {
-    const res = await fetchWithTimeout(KVDB_URL, { timeout: 3000 });
-    if (res.ok) {
-      const text = await res.text();
-      if (text.trim()) {
-        return JSON.parse(text);
+  if (KV_REST_API_URL && KV_REST_API_TOKEN) {
+    try {
+      const res = await fetchWithTimeout(`${KV_REST_API_URL}/get/flappy_db`, {
+        headers: { Authorization: `Bearer ${KV_REST_API_TOKEN}` },
+        timeout: 3000
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.result) {
+          // If result is a stringified JSON, parse it
+          const parsed = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+          if (parsed.users && parsed.scores) return parsed;
+        }
       }
+    } catch (err) {
+      console.error('Error reading from Vercel KV, falling back to local:', err.message);
     }
-  } catch (err) {
-    console.error('Error reading from remote KVDB, falling back to local:', err.message);
   }
 
+  // Fallback to local file / tmp directory
   if (!fs.existsSync(DB_FILE)) {
     let initialData = { users: [], scores: [] };
     
@@ -88,20 +97,23 @@ async function readDB() {
 // Helper function to write DB
 async function writeDB(data) {
   let remoteSuccess = false;
-  try {
-    const res = await fetchWithTimeout(KVDB_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-      timeout: 3500
-    });
-    if (res.ok) {
-      remoteSuccess = true;
-    } else {
-      console.error('Remote KVDB write failed with status:', res.status);
+  
+  if (KV_REST_API_URL && KV_REST_API_TOKEN) {
+    try {
+      const res = await fetchWithTimeout(`${KV_REST_API_URL}/set/flappy_db`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${KV_REST_API_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(JSON.stringify(data)), // Send as string value to Redis
+        timeout: 3500
+      });
+      if (res.ok) {
+        remoteSuccess = true;
+      } else {
+        console.error('Vercel KV write failed with status:', res.status);
+      }
+    } catch (err) {
+      console.error('Error writing to Vercel KV:', err.message);
     }
-  } catch (err) {
-    console.error('Error writing to remote KVDB:', err.message);
   }
 
   try {

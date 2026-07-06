@@ -33,10 +33,43 @@ async function fetchWithTimeout(resource, options = {}) {
 
 const KV_REST_API_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+const REDIS_URL = process.env.REDIS_URL;
+
+let redisClient = null;
+if (REDIS_URL) {
+  try {
+    const { createClient } = require('redis');
+    redisClient = createClient({ url: REDIS_URL });
+    redisClient.on('error', err => console.error('Redis Client Error', err));
+  } catch (err) {
+    console.error('Failed to initialize Redis client:', err.message);
+  }
+}
+
+async function getRedisClient() {
+  if (!redisClient) return null;
+  if (!redisClient.isOpen) {
+    await redisClient.connect();
+  }
+  return redisClient;
+}
 
 // Helper function to read DB
 async function readDB() {
-  if (KV_REST_API_URL && KV_REST_API_TOKEN) {
+  if (REDIS_URL) {
+    try {
+      const client = await getRedisClient();
+      if (client) {
+        const data = await client.get('flappy_db');
+        if (data) {
+          const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+          if (parsed.users && parsed.scores) return parsed;
+        }
+      }
+    } catch (err) {
+      console.error('Error reading from Redis, falling back:', err.message);
+    }
+  } else if (KV_REST_API_URL && KV_REST_API_TOKEN) {
     try {
       const res = await fetchWithTimeout(`${KV_REST_API_URL}/get/flappy_db`, {
         headers: { Authorization: `Bearer ${KV_REST_API_TOKEN}` },
@@ -98,7 +131,17 @@ async function readDB() {
 async function writeDB(data) {
   let remoteSuccess = false;
   
-  if (KV_REST_API_URL && KV_REST_API_TOKEN) {
+  if (REDIS_URL) {
+    try {
+      const client = await getRedisClient();
+      if (client) {
+        await client.set('flappy_db', JSON.stringify(data));
+        remoteSuccess = true;
+      }
+    } catch (err) {
+      console.error('Error writing to Redis:', err.message);
+    }
+  } else if (KV_REST_API_URL && KV_REST_API_TOKEN) {
     try {
       const res = await fetchWithTimeout(`${KV_REST_API_URL}/set/flappy_db`, {
         method: 'POST',

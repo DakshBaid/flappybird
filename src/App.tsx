@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Play, Trophy, User, LogOut, ListOrdered, X, Volume2, VolumeX } from 'lucide-react';
+// @ts-ignore
+import { submitScore } from './game-integration.js';
 
 // Slower gameplay constants
 const GRAVITY = 0.35;
@@ -244,14 +246,19 @@ export default function App() {
   const submitScoreToBackend = async (finalScore: number) => {
     if (!user) return;
     try {
-      const res = await fetch('/api/scores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user, score: finalScore })
-      });
-      if (res.ok) {
-        fetchPersonalBests(user);
-      }
+      // ❌ REMOVE your old database logic
+      // const res = await fetch('/api/scores', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ username: user, score: finalScore })
+      // });
+      // if (res.ok) {
+      //   fetchPersonalBests(user);
+      // }
+
+      // ✅ ADD the Central Leaderboard logic (with Secret Key)
+      submitScore(user, "Flappy Bird", finalScore, "GameOn2026!");
+      console.log("Score sent to Central Leaderboard!");
     } catch (err) {
       console.error('Failed to submit score to backend:', err);
     }

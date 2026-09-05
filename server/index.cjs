@@ -33,7 +33,7 @@ async function fetchWithTimeout(resource, options = {}) {
 
 const KV_REST_API_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const REDIS_URL = process.env.REDIS_URL;
+const REDIS_URL = process.env.REDIS_URL || process.env.FLAPPY_REDIS_URL;
 
 let redisClient = null;
 if (REDIS_URL) {

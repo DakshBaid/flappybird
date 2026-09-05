@@ -246,15 +246,15 @@ export default function App() {
   const submitScoreToBackend = async (finalScore: number) => {
     if (!user) return;
     try {
-      // ❌ REMOVE your old database logic
-      // const res = await fetch('/api/scores', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ username: user, score: finalScore })
-      // });
-      // if (res.ok) {
-      //   fetchPersonalBests(user);
-      // }
+      // Keeping local database logic to maintain the Flappy Bird leaderboard
+      const res = await fetch('/api/scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, score: finalScore })
+      });
+      if (res.ok) {
+        fetchPersonalBests(user);
+      }
 
       // ✅ ADD the Central Leaderboard logic (with Secret Key)
       submitScore(user, "Flappy Bird", finalScore, "GameOn2026!");
@@ -639,7 +639,7 @@ export default function App() {
                       <div className="flex flex-col text-left">
                         <div className="flex justify-between items-center mb-4">
                           <h2 className="text-lg font-bold font-game flex items-center gap-2 text-yellow-400 drop-shadow-[2px_2px_0px_rgba(2,6,23,1)]">
-                            <ListOrdered size={18} className="text-amber-400" /> Leaderboard
+                            <ListOrdered size={18} className="text-amber-400" /> Flappy Bird Leaderboard
                           </h2>
                           <button type="button" onClick={() => setAuthTab(null)} className="text-slate-400 hover:text-white cursor-pointer">
                             <X size={20} />
@@ -749,7 +749,7 @@ export default function App() {
                             className="w-full py-3.5 rounded-xl font-bold font-game text-xs text-white bg-slate-800 border-2 border-slate-950 shadow-[4px_4px_0px_0px_rgba(2,6,23,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(2,6,23,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-[0px_0px_0px_0px_rgba(2,6,23,1)] transition-all cursor-pointer flex items-center justify-center gap-2"
                           >
                             <ListOrdered size={14} className="text-amber-400" />
-                            View Leaderboard
+                            View Flappy Bird Leaderboard
                           </button>
                         </div>
 

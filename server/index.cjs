@@ -39,7 +39,13 @@ let redisClient = null;
 if (REDIS_URL) {
   try {
     const { createClient } = require('redis');
-    redisClient = createClient({ url: REDIS_URL });
+    redisClient = createClient({
+      url: REDIS_URL,
+      socket: {
+        connectTimeout: 1500,
+        reconnectStrategy: false
+      }
+    });
     redisClient.on('error', err => console.error('Redis Client Error', err));
   } catch (err) {
     console.error('Failed to initialize Redis client:', err.message);

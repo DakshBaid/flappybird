@@ -102,6 +102,7 @@ export default function App() {
   const [authTab, setAuthTab] = useState<'LEADERBOARD' | null>(null);
   const [usernameInput, setUsernameInput] = useState('');
   const [authError, setAuthError] = useState('');
+  const [taunt, setTaunt] = useState('');
   const [leaderboard, setLeaderboard] = useState<{ username: string, score: number, timestamp: string }[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [bgmMuted, setBgmMuted] = useState(false);
@@ -605,13 +606,13 @@ export default function App() {
                       Flappy Bird
                     </h1>
                     <p className="text-slate-300 font-bold text-xs mb-6 font-sans">
-                      Enter a username to start playing
+                      Enter your Enrollment Number to start playing
                     </p>
 
                     {authError && <p className="text-xs text-rose-400 font-bold mb-4 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg text-left">{authError}</p>}
 
                     <form onSubmit={handleSetUsername} className="flex flex-col text-left">
-                      <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Username</label>
+                      <label className="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1.5 pl-1">Enrollment Number</label>
                       <div className="flex items-center bg-slate-900 border-2 border-slate-950 rounded-xl px-3 py-2.5 mb-6">
                         <User size={16} className="text-slate-400 mr-2" />
                         <input 
@@ -619,7 +620,7 @@ export default function App() {
                           required
                           value={usernameInput}
                           onChange={(e) => setUsernameInput(e.target.value)}
-                          placeholder="username" 
+                          placeholder="Enrollment Number" 
                           className="bg-transparent border-none outline-none text-sm w-full text-white placeholder-slate-500 font-sans" 
                         />
                       </div>
@@ -737,12 +738,40 @@ export default function App() {
                         {/* Menu Actions */}
                         <div className="flex flex-col gap-3 pointer-events-auto">
                           <button 
-                            onClick={(e) => { e.stopPropagation(); startGame(); }}
+                            onClick={(e) => { e.stopPropagation(); setTaunt(''); startGame(); }}
                             className="w-full py-3.5 rounded-xl font-bold font-game text-xs text-slate-950 bg-yellow-400 border-2 border-slate-950 shadow-[4px_4px_0px_0px_rgba(2,6,23,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(2,6,23,1)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-[0px_0px_0px_0px_rgba(2,6,23,1)] transition-all cursor-pointer flex items-center justify-center gap-2"
                           >
                             <Play size={14} fill="currentColor" />
-                            {gameState === 'START' ? 'Start Game' : 'Restart Game'}
+                            {gameState === 'START' ? 'Start Game' : 'Retry'}
                           </button>
+
+                          {gameState === 'GAME_OVER' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (score >= 3) {
+                                  window.open("https://forms.gle/YOUR_FORM_LINK", "_blank");
+                                } else {
+                                  setTaunt("C'mon itne se score me thodi na denge hum form!");
+                                }
+                              }}
+                              onMouseEnter={(e) => {
+                                if (score < 3) {
+                                  setTaunt("C'mon itne se score me thodi na denge hum form!");
+                                  const btn = e.currentTarget;
+                                  const randomX = (Math.random() - 0.5) * 150;
+                                  const randomY = (Math.random() - 0.5) * 150;
+                                  btn.style.transform = `translate(${randomX}px, ${randomY}px)`;
+                                }
+                              }}
+                              className="w-full py-3.5 rounded-xl font-bold font-game text-xs text-slate-950 bg-green-400 border-2 border-slate-950 shadow-[4px_4px_0px_0px_rgba(2,6,23,1)] transition-all flex items-center justify-center gap-2 z-50"
+                              style={{ cursor: score >= 3 ? 'pointer' : 'not-allowed', transition: score < 3 ? 'transform 0.15s ease-out' : 'all 0.15s' }}
+                            >
+                              Continue with the form
+                            </button>
+                          )}
+
+                          {taunt && <p className="text-[10px] text-rose-400 font-bold font-sans animate-bounce mb-1">{taunt}</p>}
 
                           <button 
                             onClick={() => setAuthTab('LEADERBOARD')}

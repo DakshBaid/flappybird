@@ -750,7 +750,7 @@ export default function App() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (score >= 3) {
-                                  window.open("https://forms.gle/YOUR_FORM_LINK", "_blank");
+                                  window.open("https://flappybird-ochre-mu.vercel.app/", "_blank");
                                 } else {
                                   setTaunt("C'mon itne se score me thodi na denge hum form!");
                                 }
@@ -795,6 +795,11 @@ export default function App() {
 
 
 
+        </div>
+        
+        {/* Credits */}
+        <div className="absolute bottom-2 right-4 text-[10px] text-white/50 font-sans pointer-events-none z-50">
+          Made by Daksh Baid and Arpit Dhandhare
         </div>
       </div>
     </div>

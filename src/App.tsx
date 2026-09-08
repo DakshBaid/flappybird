@@ -6,9 +6,10 @@ import { submitScore } from './game-integration.js';
 // Slower gameplay constants
 const GRAVITY = 0.35;
 const JUMP_STRENGTH = -7;
-const PIPE_WIDTH = 110;
-const BIRD_SIZE = 65; // Increased size to fit the logo image nicely
-const BIRD_X = 120; // Bird's fixed horizontal position
+const isMobile = typeof window !== 'undefined' && window.innerWidth < 600;
+const PIPE_WIDTH = isMobile ? 70 : 110;
+const BIRD_SIZE = isMobile ? 45 : 65; 
+const BIRD_X = isMobile ? 60 : 120;
 
 type GameState = 'START' | 'PLAYING' | 'GAME_OVER';
 
@@ -21,8 +22,10 @@ interface PipeData {
 
 // Difficulty curves: starts between MEDIUM and HARD, gets harder over time
 const getPipeGap = (currentScore: number) => {
-  // Starts at 230 (wider to fit size 65 bird) and decreases to a minimum cap of 170
-  return Math.max(170, 230 - currentScore * 1.5);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 600;
+  const baseGap = isMobile ? 180 : 230;
+  const minGap = isMobile ? 130 : 170;
+  return Math.max(minGap, baseGap - currentScore * 1.5);
 };
 
 const getPipeSpeed = (currentScore: number) => {
@@ -798,8 +801,8 @@ export default function App() {
         </div>
         
         {/* Credits */}
-        <div className="absolute bottom-2 right-4 text-[10px] text-white/50 font-sans pointer-events-none z-50">
-          Made by Daksh Baid and Arpit Dhandhare
+        <div className="absolute bottom-6 left-0 w-full flex justify-center text-xs font-bold text-white drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] bg-slate-900/40 py-2 backdrop-blur-sm pointer-events-none z-50 uppercase tracking-widest border-y-2 border-slate-950/50">
+          Made by Daksh Baid & Arpit Dhandhare
         </div>
       </div>
     </div>

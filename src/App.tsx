@@ -752,15 +752,15 @@ export default function App() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (score >= 3) {
-                                  window.open("https://flappybird-ochre-mu.vercel.app/", "_blank");
+                                if (highScore >= 3) {
+                                  window.open("https://registrationform-liart.vercel.app/", "_blank");
                                 } else {
-                                  setTaunt("C'mon itne se score me thodi na denge hum form!");
+                                  setTaunt("A minimum personal best score of 3 is required to access the form.");
                                 }
                               }}
                               onMouseEnter={(e) => {
-                                if (score < 3) {
-                                  setTaunt("C'mon itne se score me thodi na denge hum form!");
+                                if (highScore < 3) {
+                                  setTaunt("A minimum personal best score of 3 is required to access the form.");
                                   const btn = e.currentTarget;
                                   const randomX = (Math.random() - 0.5) * 150;
                                   const randomY = (Math.random() - 0.5) * 150;
@@ -768,7 +768,7 @@ export default function App() {
                                 }
                               }}
                               className="w-full py-3.5 rounded-xl font-bold font-game text-xs text-slate-950 bg-green-400 border-2 border-slate-950 shadow-[4px_4px_0px_0px_rgba(2,6,23,1)] transition-all flex items-center justify-center gap-2 z-50"
-                              style={{ cursor: score >= 3 ? 'pointer' : 'not-allowed', transition: score < 3 ? 'transform 0.15s ease-out' : 'all 0.15s' }}
+                              style={{ cursor: highScore >= 3 ? 'pointer' : 'not-allowed', transition: highScore < 3 ? 'transform 0.15s ease-out' : 'all 0.15s' }}
                             >
                               Continue with the form
                             </button>

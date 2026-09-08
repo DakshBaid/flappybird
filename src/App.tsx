@@ -801,7 +801,7 @@ export default function App() {
         </div>
         
         {/* Credits */}
-        <div className="absolute bottom-6 left-0 w-full flex justify-center text-xs font-bold text-white drop-shadow-[2px_2px_0px_rgba(0,0,0,1)] bg-slate-900/40 py-2 backdrop-blur-sm pointer-events-none z-50 uppercase tracking-widest border-y-2 border-slate-950/50">
+        <div className="absolute bottom-3 right-4 text-xs font-bold text-white/80 drop-shadow-md font-sans pointer-events-none z-50">
           Made by Daksh Baid & Arpit Dhandhare
         </div>
       </div>

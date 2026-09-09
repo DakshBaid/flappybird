@@ -655,32 +655,32 @@ export default function App() {
                           </button>
                         </div>
 
-                        <div className="bg-slate-900 border-2 border-slate-950 rounded-2xl overflow-hidden max-h-[250px] overflow-y-auto shadow-[4px_4px_0px_0px_rgba(2,6,23,1)]">
+                        <div className="bg-slate-900 border-2 border-slate-950 rounded-2xl overflow-auto max-h-[250px] shadow-[4px_4px_0px_0px_rgba(2,6,23,1)]">
                           {loadingLeaderboard ? (
                             <p className="text-xs text-center py-8 text-slate-400 font-game">Loading...</p>
                           ) : leaderboard.length === 0 ? (
                             <p className="text-xs text-center py-8 text-slate-400 font-game">No high scores!</p>
                           ) : (
-                            <table className="w-full text-left text-xs border-collapse">
+                            <table className="w-full text-left text-xs border-collapse min-w-[300px]">
                               <thead>
                                 <tr className="border-b border-slate-950/40 bg-slate-950 text-slate-400 font-bold font-game text-[9px] uppercase tracking-wider">
-                                  <th className="p-3 text-center w-12">Rank</th>
-                                  <th className="p-3">Player</th>
-                                  <th className="p-3 text-right">Date</th>
-                                  <th className="p-3 text-right">Score</th>
+                                  <th className="px-2 py-3 text-center w-8">Rank</th>
+                                  <th className="px-2 py-3">Player</th>
+                                  <th className="px-2 py-3 text-right">Date</th>
+                                  <th className="px-2 py-3 text-right">Score</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {leaderboard.map((item: { username: string, score: number, timestamp: string }, idx: number) => (
                                   <tr key={idx} className="border-b border-slate-950/20 hover:bg-white/5 transition-colors font-game text-[9px]">
-                                    <td className="p-3 text-center font-bold">
+                                    <td className="px-2 py-3 text-center font-bold">
                                       {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
                                     </td>
-                                    <td className="p-3 font-semibold text-white font-sans text-xs">{item.username}</td>
-                                    <td className="p-3 text-right text-slate-400 font-sans text-[10px] whitespace-nowrap">
+                                    <td className="px-2 py-3 font-semibold text-white font-sans text-xs max-w-[70px] truncate" title={item.username}>{item.username}</td>
+                                    <td className="px-2 py-3 text-right text-slate-400 font-sans text-[9px] leading-tight">
                                       {item.timestamp ? new Date(item.timestamp).toLocaleString('en-IN', {day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit'}) : '-'}
                                     </td>
-                                    <td className="p-3 text-right font-bold text-sky-400">{item.score}</td>
+                                    <td className="px-2 py-3 text-right font-bold text-sky-400 text-xs">{item.score}</td>
                                   </tr>
                                 ))}
                               </tbody>

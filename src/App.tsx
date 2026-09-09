@@ -807,7 +807,7 @@ export default function App() {
         </div>
         
         {/* Credits */}
-        <div className="absolute bottom-3 right-4 text-xs font-bold text-white/80 drop-shadow-md font-sans pointer-events-none z-50">
+        <div className="absolute bottom-12 w-full text-center md:w-auto md:bottom-4 md:right-4 md:text-right text-[10px] md:text-xs font-bold text-white/80 drop-shadow-md font-sans pointer-events-none z-50 px-4">
           Made by Daksh Baid & Arpit Dhandhare
         </div>
       </div>

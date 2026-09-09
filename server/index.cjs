@@ -61,7 +61,7 @@ async function getRedisClient() {
 }
 
 // Helper function to read DB
-async function readDB() {
+async function rawReadDB() {
   if (REDIS_URL) {
     try {
       const client = await getRedisClient();
@@ -131,6 +131,15 @@ async function readDB() {
     } catch (e) {}
     return initialData;
   }
+}
+
+async function readDB() {
+  const db = await rawReadDB();
+  if (db && db.scores) {
+    const cutoff = new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).getTime();
+    db.scores = db.scores.filter(s => !s.timestamp || new Date(s.timestamp).getTime() >= cutoff);
+  }
+  return db;
 }
 
 // Helper function to write DB

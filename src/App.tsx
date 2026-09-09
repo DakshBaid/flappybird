@@ -663,6 +663,7 @@ export default function App() {
                                 <tr className="border-b border-slate-950/40 bg-slate-950 text-slate-400 font-bold font-game text-[9px] uppercase tracking-wider">
                                   <th className="p-3 text-center w-12">Rank</th>
                                   <th className="p-3">Player</th>
+                                  <th className="p-3 text-right">Date</th>
                                   <th className="p-3 text-right">Score</th>
                                 </tr>
                               </thead>
@@ -673,6 +674,9 @@ export default function App() {
                                       {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
                                     </td>
                                     <td className="p-3 font-semibold text-white font-sans text-xs">{item.username}</td>
+                                    <td className="p-3 text-right text-slate-400 font-sans text-[10px] whitespace-nowrap">
+                                      {item.timestamp ? new Date(item.timestamp).toLocaleString('en-IN', {day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit'}) : '-'}
+                                    </td>
                                     <td className="p-3 text-right font-bold text-sky-400">{item.score}</td>
                                   </tr>
                                 ))}

@@ -162,10 +162,10 @@ export default function App() {
   // Fetch and poll leaderboard when tab opens
   useEffect(() => {
     if (authTab === 'LEADERBOARD') {
-      fetchLeaderboard();
+      fetchLeaderboard(false);
       const interval = setInterval(() => {
-        fetchLeaderboard();
-      }, 5000);
+        fetchLeaderboard(true);
+      }, 30000);
       return () => clearInterval(interval);
     }
   }, [authTab]);
@@ -191,8 +191,8 @@ export default function App() {
     }
   };
 
-  const fetchLeaderboard = async () => {
-    setLoadingLeaderboard(true);
+  const fetchLeaderboard = async (isBackground = false) => {
+    if (!isBackground) setLoadingLeaderboard(true);
     try {
       const res = await fetch('/api/scores/leaderboard');
       if (res.ok) {
@@ -202,7 +202,7 @@ export default function App() {
     } catch (err) {
       console.error('Error fetching leaderboard:', err);
     } finally {
-      setLoadingLeaderboard(false);
+      if (!isBackground) setLoadingLeaderboard(false);
     }
   };
 
@@ -385,12 +385,14 @@ export default function App() {
         const nextX = pipe.x - currentPipeSpeed;
         let passed = pipe.passed;
         
-        // Tighter hitboxes
+        // Very forgiving hitboxes (bird is visually larger than its physical hitbox)
+        const paddingX = BIRD_SIZE * 0.25; // 25% padding on left/right
+        const paddingY = BIRD_SIZE * 0.20; // 20% padding on top/bottom
         const birdRect = {
-          left: BIRD_X + 5,
-          right: BIRD_X + BIRD_SIZE - 5,
-          top: newBirdPos + 5,
-          bottom: newBirdPos + BIRD_SIZE - 5,
+          left: BIRD_X + paddingX,
+          right: BIRD_X + BIRD_SIZE - paddingX,
+          top: newBirdPos + paddingY,
+          bottom: newBirdPos + BIRD_SIZE - paddingY,
         };
 
         const topPipeRect = {

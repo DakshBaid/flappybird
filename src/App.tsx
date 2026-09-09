@@ -23,13 +23,13 @@ interface PipeData {
 // Difficulty curves: starts between MEDIUM and HARD, gets harder over time
 const getPipeGap = (currentScore: number) => {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 600;
-  const baseGap = isMobile ? 180 : 230;
-  const minGap = isMobile ? 130 : 170;
-  return Math.max(minGap, baseGap - currentScore * 1.5);
+  const baseGap = isMobile ? 200 : 250;
+  const minGap = isMobile ? 140 : 180;
+  return Math.max(minGap, baseGap - currentScore * 1.2);
 };
 
 const getPipeSpeed = (currentScore: number) => {
-  return Math.min(5.2, 3.0 + currentScore * 0.05);
+  return Math.min(4.8, 2.7 + currentScore * 0.04);
 };
 
 const PARTICLES = [

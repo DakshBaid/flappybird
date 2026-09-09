@@ -610,8 +610,11 @@ export default function App() {
                     <h1 className="text-2xl font-bold font-game text-yellow-400 mb-2 drop-shadow-[3px_3px_0px_rgba(2,6,23,1)] uppercase tracking-wider">
                       Flappy Bird
                     </h1>
-                    <p className="text-slate-300 font-bold text-xs mb-6 font-sans">
+                    <p className="text-slate-300 font-bold text-xs mb-2 font-sans">
                       Enter your Enrollment Number to start playing
+                    </p>
+                    <p className="text-[10px] text-white/40 font-bold font-sans mb-6 tracking-wide">
+                      Made by Daksh Baid & Arpit Dandhare
                     </p>
 
                     {authError && <p className="text-xs text-rose-400 font-bold mb-4 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg text-left">{authError}</p>}
@@ -714,8 +717,11 @@ export default function App() {
                           Flappy Bird
                         </h1>
                         
-                        <p className="text-slate-300 font-bold text-xs mb-6 font-sans">
+                        <p className="text-slate-300 font-bold text-xs mb-2 font-sans">
                           {gameState === 'GAME_OVER' ? '💻 You crashed!' : '🚀 Flap through the obstacles'}
+                        </p>
+                        <p className="text-[10px] text-white/40 font-bold font-sans mb-6 tracking-wide">
+                          Made by Daksh Baid & Arpit Dandhare
                         </p>
 
                         {/* Score Dashboard */}
@@ -804,11 +810,6 @@ export default function App() {
 
 
 
-        </div>
-        
-        {/* Credits */}
-        <div className="absolute bottom-12 w-full text-center md:w-auto md:bottom-4 md:right-4 md:text-right text-[10px] md:text-xs font-bold text-white/80 drop-shadow-md font-sans pointer-events-none z-50 px-4">
-          Made by Daksh Baid & Arpit Dhandhare
         </div>
       </div>
     </div>

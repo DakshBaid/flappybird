@@ -1,2 +1,2 @@
-import app from '../server/index.cjs';
-export default app;
+const app = require('../server/index.cjs');
+module.exports = app;
